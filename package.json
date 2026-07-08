@@ -7,8 +7,16 @@
     "web:dev": "npm --prefix apps/web run dev",
     "web:build": "npm --prefix apps/web run build",
     "web:lint": "npm --prefix apps/web run lint",
+
     "api:tidy": "cd apps/api && go mod tidy",
     "api:dev": "cd apps/api && go run ./cmd/server",
-    "api:test": "cd apps/api && go test ./..."
+    "api:test": "cd apps/api && go test ./...",
+
+    "docker:typst:pull": "docker pull ghcr.io/typst/typst:latest",
+    "docker:typst:version": "docker run --rm ghcr.io/typst/typst:latest --version",
+    "docker:typst:check": "npm run docker:typst:version",
+
+    "setup": "npm run web:install && npm run api:tidy && npm run docker:typst:pull",
+    "check": "npm run web:build && npm run api:test && npm run docker:typst:check"
   }
 }
