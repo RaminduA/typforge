@@ -1,0 +1,14 @@
+{
+  "name": "typforge",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "web:install": "npm --prefix apps/web install",
+    "web:dev": "npm --prefix apps/web run dev",
+    "web:build": "npm --prefix apps/web run build",
+    "web:lint": "npm --prefix apps/web run lint",
+    "api:tidy": "cd apps/api && go mod tidy",
+    "api:dev": "cd apps/api && go run ./cmd/server",
+    "api:test": "cd apps/api && go test ./..."
+  }
+}

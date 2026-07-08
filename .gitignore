@@ -1,0 +1,36 @@
+# dependencies
+node_modules/
+apps/web/node_modules/
+
+# Next.js
+apps/web/.next/
+apps/web/out/
+
+# env
+.env
+.env.*
+!.env.example
+!.env.local.example
+apps/api/.env
+apps/web/.env.local
+
+# Go
+*.exe
+*.test
+coverage.out
+
+# generated locks / sums
+# package-lock.json should be committed after npm install
+# go.sum should be committed after go mod tidy
+
+# Typforge local storage
+storage/projects/*
+storage/builds/*
+!storage/projects/.gitkeep
+!storage/builds/.gitkeep
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

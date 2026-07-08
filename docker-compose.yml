@@ -1,0 +1,11 @@
+name: typforge
+
+services:
+  typst-runner:
+    image: ghcr.io/typst/typst:latest
+    profiles:
+      - tools
+    working_dir: /work
+    volumes:
+      - .:/work
+    command: ["--version"]
