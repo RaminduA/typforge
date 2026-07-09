@@ -81,13 +81,109 @@ button {
 .shell {
   position: fixed;
   inset: 0;
-  display: grid;
-  grid-template-columns: 280px minmax(420px, 1fr) minmax(420px, 46vw);
+
   width: 100vw;
   height: 100dvh;
   max-height: 100dvh;
+
   overflow: hidden;
+
   background: var(--bg-app);
+}
+
+.workspace-panel {
+  width: 100%;
+  height: 100%;
+
+  min-width: 0;
+  min-height: 0;
+
+  overflow: hidden;
+}
+
+.workspace-resize-handle {
+  position: relative;
+
+  width: 5px;
+  min-width: 5px;
+
+  background: transparent;
+
+  cursor: col-resize;
+
+  outline: none;
+
+  transition:
+    background-color 120ms ease,
+    box-shadow 120ms ease;
+
+  z-index: 20;
+}
+
+/* Thin resting divider */
+.workspace-resize-handle::after {
+  content: "";
+
+  position: absolute;
+
+  top: 0;
+  bottom: 0;
+
+  left: 50%;
+
+  width: 1px;
+
+  transform: translateX(-50%);
+
+  background: var(--border);
+}
+
+/* Larger visual target while hovering */
+.workspace-resize-handle:hover {
+  background: color-mix(
+    in srgb,
+    var(--accent) 13%,
+    transparent
+  );
+}
+
+.workspace-resize-handle:hover::after {
+  width: 2px;
+
+  background: var(--accent);
+}
+
+/* Keyboard accessibility */
+.workspace-resize-handle:focus-visible {
+  background: color-mix(
+    in srgb,
+    var(--accent) 18%,
+    transparent
+  );
+
+  box-shadow:
+    0 0 0 1px var(--accent);
+}
+
+.workspace-resize-handle:focus-visible::after {
+  width: 2px;
+
+  background: var(--accent);
+}
+
+/* While dragging */
+.workspace-resize-handle:active {
+  background: color-mix(
+    in srgb,
+    var(--accent) 22%,
+    transparent
+  );
+}
+
+.workspace-resize-handle:active::after {
+  width: 2px;
+
+  background: var(--accent);
 }
 
 .sidebar,
@@ -96,10 +192,11 @@ button {
 .tools-panel {
   min-width: 0;
   min-height: 0;
-  height: 100dvh;
-  max-height: 100dvh;
+
+  width: 100%;
+  height: 100%;
+
   overflow: hidden;
-  border-right: 1px solid var(--border);
 }
 
 .sidebar {
@@ -487,15 +584,4 @@ button {
   background: var(--bg-panel-soft);
   color: var(--text-primary);
   padding: 9px 10px;
-}
-
-@media (max-width: 1100px) {
-  .shell {
-    grid-template-columns: 260px minmax(360px, 1fr);
-  }
-
-  .preview-pane,
-  .tools-panel {
-    display: none;
-  }
 }

@@ -13,6 +13,13 @@ import { EditorPane } from "./EditorPane";
 import { LeftSidebar } from "./LeftSidebar";
 import { PdfPreviewPane } from "./PdfPreviewPane";
 import { ToolTab, ToolsPanel } from "./ToolsPanel";
+import {
+  Group,
+  Panel,
+  Separator,
+  useDefaultLayout,
+} from "react-resizable-panels";
+import { panelLayoutStorage } from "@/lib/panel-layout-storage";
 
 export function TypforgeShell() {
   const [project, setProject] = useState<Project>();
@@ -29,6 +36,15 @@ export function TypforgeShell() {
   const [uploadOpen, setUploadOpen] = useState(false);
   const [theme, setTheme] = useState<ThemePreference>("dark");
   const [compiling, setCompiling] = useState(false);
+  const [layoutReady, setLayoutReady] = useState(false);
+
+  const {
+    defaultLayout,
+    onLayoutChanged
+  } = useDefaultLayout({
+    id: "typforge-workspace-layout-v1",
+    storage: panelLayoutStorage
+  });
 
   const pdfUrl = useMemo(() => {
     if (!pdfPath) return undefined;
@@ -43,6 +59,10 @@ export function TypforgeShell() {
   useEffect(() => {
     applyTheme(theme);
   }, [theme]);
+
+  useEffect(() => {
+    setLayoutReady(true);
+  }, []);
 
   useEffect(() => {
     void bootstrap();
@@ -215,46 +235,91 @@ export function TypforgeShell() {
     await compileProject(project, false);
   }
 
+  if (!layoutReady) {
+    return <div className="shell" aria-hidden="true" />;
+  }
+
   return (
     <>
-      <div className="shell">
-        <LeftSidebar
-          project={project}
-          tree={tree}
-          activePath={activePath}
-          onOpenFile={handleOpenFile}
-          onNewFile={handleNewFile}
-          onNewFolder={handleNewFolder}
-          onUploadZip={() => setUploadOpen(true)}
-          onOpenSettings={() => setSettingsOpen(true)}
+      <Group
+        id="typforge-workspace"
+        orientation="horizontal"
+        className="shell"
+        defaultLayout={defaultLayout}
+        onLayoutChanged={onLayoutChanged}
+      >
+        <Panel
+          id="file-sidebar"
+          defaultSize="18%"
+          minSize="220px"
+          maxSize="360px"
+        >
+          <div className="workspace-panel">
+            <LeftSidebar
+              project={project}
+              tree={tree}
+              activePath={activePath}
+              onOpenFile={handleOpenFile}
+              onNewFile={handleNewFile}
+              onNewFolder={handleNewFolder}
+              onUploadZip={() => setUploadOpen(true)}
+              onOpenSettings={() => setSettingsOpen(true)}
+            />
+          </div>
+        </Panel>
+
+        <Separator
+          id="sidebar-editor-separator"
+          className="workspace-resize-handle"
         />
 
-        <EditorPane
-          activePath={activePath}
-          content={content}
-          onChange={setContent}
-          onOpenTools={() => setToolsOpen((value) => !value)}
+        <Panel
+          id="typst-editor"
+          defaultSize="36%"
+          minSize="360px"
+        >
+          <div className="workspace-panel">
+            <EditorPane
+              activePath={activePath}
+              content={content}
+              onChange={setContent}
+              onOpenTools={() => setToolsOpen((value) => !value)}
+            />
+          </div>
+        </Panel>
+
+        <Separator
+          id="editor-preview-separator"
+          className="workspace-resize-handle"
         />
 
-        {toolsOpen ? (
-          <ToolsPanel
-            activeTab={activeTool}
-            onChangeTab={setActiveTool}
-            project={project}
-            versions={versions}
-            logs={logs}
-            onCreateVersion={handleCreateVersion}
-            onRestoreVersion={handleRestoreVersion}
-          />
-        ) : (
-          <PdfPreviewPane
-            pdfUrl={pdfUrl}
-            downloadUrl={downloadUrl}
-            compiling={compiling}
-            onCompile={handleCompile}
-          />
-        )}
-      </div>
+        <Panel
+          id="preview-tools"
+          defaultSize="46%"
+          minSize="400px"
+        >
+          <div className="workspace-panel">
+            {toolsOpen ? (
+              <ToolsPanel
+                activeTab={activeTool}
+                onChangeTab={setActiveTool}
+                project={project}
+                versions={versions}
+                logs={logs}
+                onCreateVersion={handleCreateVersion}
+                onRestoreVersion={handleRestoreVersion}
+              />
+            ) : (
+              <PdfPreviewPane
+                pdfUrl={pdfUrl}
+                downloadUrl={downloadUrl}
+                compiling={compiling}
+                onCompile={handleCompile}
+              />
+            )}
+          </div>
+        </Panel>
+      </Group>
 
       {settingsOpen ? (
         <SettingsModal
