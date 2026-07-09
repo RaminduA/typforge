@@ -2,13 +2,13 @@
 
 import { useEffect, useMemo, useState } from "react";
 
+import { SettingsModal } from "@/components/modals/SettingsModal";
+import { UploadZipModal } from "@/components/modals/UploadZipModal";
 import { api } from "@/lib/api";
 import { findFirstTypFile } from "@/lib/file-tree";
 import { applyTheme, type ThemePreference } from "@/lib/theme";
 import type { CompileResult } from "@/types/build";
 import type { FileNode, Project, VersionSnapshot } from "@/types/project";
-import { SettingsModal } from "@/components/modals/SettingsModal";
-import { UploadZipModal } from "@/components/modals/UploadZipModal";
 import { EditorPane } from "./EditorPane";
 import { LeftSidebar } from "./LeftSidebar";
 import { PdfPreviewPane } from "./PdfPreviewPane";
@@ -48,6 +48,29 @@ export function TypforgeShell() {
     void bootstrap();
   }, []);
 
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      const isSaveShortcut =
+        (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s";
+
+      if (!isSaveShortcut) {
+        return;
+      }
+
+      event.preventDefault();
+
+      if (!compiling) {
+        void compileProject(project, true);
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [project, activePath, content, compiling]);
+
   async function bootstrap() {
     const existing = await api.listProjects();
     const selected = existing[0] ?? (await api.createProject("Untitled Project"));
@@ -63,6 +86,9 @@ export function TypforgeShell() {
     }
 
     await refreshVersions(selected.id);
+
+    // Auto-load the current compiled PDF preview when the app starts.
+    await compileProject(selected, false);
   }
 
   async function refreshTree(projectId = project?.id) {
@@ -86,28 +112,29 @@ export function TypforgeShell() {
     await openFile(project.id, path);
   }
 
-  async function handleSave() {
-    if (!project || !activePath) return;
-    await api.updateFile(project.id, activePath, content);
-    await refreshTree(project.id);
-  }
-
-  async function handleCompile() {
-    if (!project) return;
+  async function compileProject(targetProject = project, saveBeforeCompile = true) {
+    if (!targetProject) return;
 
     setCompiling(true);
 
     try {
-      if (activePath) {
-        await api.updateFile(project.id, activePath, content);
+      if (saveBeforeCompile && activePath) {
+        await api.updateFile(targetProject.id, activePath, content);
+        await refreshTree(targetProject.id);
       }
 
-      const result: CompileResult = await api.compile(project.id, project.entryFile);
-      setLogs(result.diagnostics?.map((d) => `${d.severity}: ${d.message}`).join("\n") ?? "");
+      const result: CompileResult = await api.compile(
+        targetProject.id,
+        targetProject.entryFile
+      );
 
       if (result.logsUrl) {
         const logResult = await api.getLogs(result.buildId);
         setLogs(logResult.logs);
+      } else {
+        setLogs(
+          result.diagnostics?.map((d) => `${d.severity}: ${d.message}`).join("\n") ?? ""
+        );
       }
 
       if (result.ok) {
@@ -124,6 +151,10 @@ export function TypforgeShell() {
     } finally {
       setCompiling(false);
     }
+  }
+
+  async function handleCompile() {
+    await compileProject(project, true);
   }
 
   async function handleNewFile() {
@@ -153,12 +184,17 @@ export function TypforgeShell() {
     await api.uploadZip(project.id, file);
     await refreshTree(project.id);
     setUploadOpen(false);
+
+    // Refresh preview after upload because project files may have changed.
+    await compileProject(project, false);
   }
 
   async function handleCreateVersion() {
     if (!project) return;
 
-    const message = window.prompt("Snapshot message", "Manual snapshot") ?? "Manual snapshot";
+    const message =
+      window.prompt("Snapshot message", "Manual snapshot") ?? "Manual snapshot";
+
     await api.createVersion(project.id, message);
     await refreshVersions(project.id);
   }
@@ -168,6 +204,15 @@ export function TypforgeShell() {
 
     await api.restoreVersion(project.id, versionId);
     await refreshTree(project.id);
+
+    const loadedTree = await api.getTree(project.id);
+    const firstTyp = findFirstTypFile(loadedTree);
+
+    if (firstTyp) {
+      await openFile(project.id, firstTyp.path);
+    }
+
+    await compileProject(project, false);
   }
 
   return (
@@ -188,7 +233,6 @@ export function TypforgeShell() {
           activePath={activePath}
           content={content}
           onChange={setContent}
-          onSave={handleSave}
           onOpenTools={() => setToolsOpen((value) => !value)}
         />
 
@@ -221,7 +265,10 @@ export function TypforgeShell() {
       ) : null}
 
       {uploadOpen ? (
-        <UploadZipModal onUpload={handleUploadZip} onClose={() => setUploadOpen(false)} />
+        <UploadZipModal
+          onUpload={handleUploadZip}
+          onClose={() => setUploadOpen(false)}
+        />
       ) : null}
     </>
   );
