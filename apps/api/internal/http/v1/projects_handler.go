@@ -2,6 +2,7 @@ package v1
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 
@@ -117,4 +118,96 @@ func (h *ProjectsHandler) Compile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	httpjson.WriteData(w, status, result)
+}
+
+func (h *ProjectsHandler) Duplicate(
+	w http.ResponseWriter,
+	r *http.Request,
+) {
+	projectID := chi.URLParam(
+		r,
+		"projectId",
+	)
+
+	duplicate, err :=
+		h.Projects.DuplicateProject(
+			r.Context(),
+			projectID,
+		)
+
+	if err != nil {
+		httpjson.WriteError(
+			w,
+			http.StatusBadRequest,
+			httpjson.ErrCodeBadRequest,
+			err.Error(),
+		)
+		return
+	}
+
+	httpjson.WriteData(
+		w,
+		http.StatusCreated,
+		duplicate,
+	)
+}
+
+func (h *ProjectsHandler) Export(
+	w http.ResponseWriter,
+	r *http.Request,
+) {
+	projectID := chi.URLParam(
+		r,
+		"projectId",
+	)
+
+	currentProject, err :=
+		h.Projects.GetProject(
+			r.Context(),
+			projectID,
+		)
+
+	if err != nil {
+		httpjson.WriteError(
+			w,
+			http.StatusNotFound,
+			httpjson.ErrCodeNotFound,
+			err.Error(),
+		)
+		return
+	}
+
+	fileName := strings.TrimSpace(
+		currentProject.Name,
+	)
+
+	fileName = strings.ReplaceAll(
+		fileName,
+		`"`,
+		"_",
+	)
+
+	if fileName == "" {
+		fileName = "typforge-project"
+	}
+
+	w.Header().Set(
+		"Content-Type",
+		"application/zip",
+	)
+
+	w.Header().Set(
+		"Content-Disposition",
+		`attachment; filename="`+
+			fileName+
+			`.zip"`,
+	)
+
+	if err := h.Projects.ExportProjectZIP(
+		r.Context(),
+		projectID,
+		w,
+	); err != nil {
+		return
+	}
 }

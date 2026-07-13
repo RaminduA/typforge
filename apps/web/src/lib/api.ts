@@ -133,5 +133,126 @@ export const api = {
     if (!path) return "";
     if (path.startsWith("http")) return path;
     return `${API_BASE_URL}${path.replace(/^\/api\/v1/, "")}`;
-  }
+  },
+
+  updateProject(
+    projectId: string,
+    name: string
+  ) {
+    return request<Project>(
+      `/projects/${projectId}/`,
+      {
+        method: "PATCH",
+        body: JSON.stringify({ name })
+      }
+    );
+  },
+
+  deleteProject(
+    projectId: string
+  ) {
+    return request<void>(
+      `/projects/${projectId}/`,
+      {
+        method: "DELETE"
+      }
+    );
+  },
+
+  duplicateProject(
+    projectId: string
+  ) {
+    return request<Project>(
+      `/projects/${projectId}/duplicate`,
+      {
+        method: "POST"
+      }
+    );
+  },
+
+  renameEntry(
+    projectId: string,
+    path: string,
+    newName: string
+  ) {
+    return request<{ path: string }>(
+      `/projects/${projectId}/entries/rename`,
+      {
+        method: "PATCH",
+        body: JSON.stringify({
+          path,
+          newName
+        })
+      }
+    );
+  },
+
+  deleteFile(
+    projectId: string,
+    path: string
+  ) {
+    return request<void>(
+      `/projects/${projectId}/files?path=${encodeURIComponent(path)}`,
+      {
+        method: "DELETE"
+      }
+    );
+  },
+
+  deleteFolder(
+    projectId: string,
+    path: string
+  ) {
+    return request<void>(
+      `/projects/${projectId}/folders?path=${encodeURIComponent(path)}`,
+      {
+        method: "DELETE"
+      }
+    );
+  },
+
+  uploadEntries(
+    projectId: string,
+    entries: Array<{
+      file: File;
+      path: string;
+    }>
+  ) {
+    const form = new FormData();
+
+    for (const entry of entries) {
+      form.append(
+        "files",
+        entry.file
+      );
+
+      form.append(
+        "paths",
+        entry.path
+      );
+    }
+
+    return request<{
+      paths: string[];
+    }>(
+      `/projects/${projectId}/uploads`,
+      {
+        method: "POST",
+        body: form
+      }
+    );
+  },
+
+  fileDownloadUrl(
+    projectId: string,
+    path: string
+  ) {
+    return `${API_BASE_URL}/projects/${projectId}/files/download?path=${encodeURIComponent(path)}`;
+  },
+
+  projectExportUrl(
+    projectId: string
+  ) {
+    return `${API_BASE_URL}/projects/${projectId}/export`;
+  },
 };

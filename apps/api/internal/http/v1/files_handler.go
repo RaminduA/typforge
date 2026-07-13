@@ -2,6 +2,8 @@ package v1
 
 import (
 	"net/http"
+	"path/filepath"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 
@@ -20,6 +22,11 @@ type fileContentRequest struct {
 
 type folderRequest struct {
 	Path string `json:"path"`
+}
+
+type renameEntryRequest struct {
+	Path    string `json:"path"`
+	NewName string `json:"newName"`
 }
 
 func (h *FilesHandler) GetTree(w http.ResponseWriter, r *http.Request) {
@@ -160,4 +167,214 @@ func (h *FilesHandler) UploadZip(w http.ResponseWriter, r *http.Request) {
 	httpjson.WriteData(w, http.StatusOK, map[string]interface{}{
 		"files": uploaded,
 	})
+}
+
+func (h *FilesHandler) RenameEntry(
+	w http.ResponseWriter,
+	r *http.Request,
+) {
+	projectID := chi.URLParam(
+		r,
+		"projectId",
+	)
+
+	var request renameEntryRequest
+
+	if err := httpjson.DecodeJSON(
+		r,
+		&request,
+	); err != nil {
+		httpjson.WriteError(
+			w,
+			http.StatusBadRequest,
+			httpjson.ErrCodeBadRequest,
+			"Invalid JSON body",
+		)
+		return
+	}
+
+	newPath, err := h.Projects.RenameEntry(
+		r.Context(),
+		projectID,
+		request.Path,
+		request.NewName,
+	)
+
+	if err != nil {
+		httpjson.WriteError(
+			w,
+			http.StatusBadRequest,
+			httpjson.ErrCodeBadRequest,
+			err.Error(),
+		)
+		return
+	}
+
+	httpjson.WriteData(
+		w,
+		http.StatusOK,
+		map[string]string{
+			"path": newPath,
+		},
+	)
+}
+
+func (h *FilesHandler) UploadEntries(
+	w http.ResponseWriter,
+	r *http.Request,
+) {
+	projectID := chi.URLParam(
+		r,
+		"projectId",
+	)
+
+	if err := r.ParseMultipartForm(
+		64 << 20,
+	); err != nil {
+		httpjson.WriteError(
+			w,
+			http.StatusBadRequest,
+			httpjson.ErrCodeBadRequest,
+			"Invalid multipart upload",
+		)
+		return
+	}
+
+	form := r.MultipartForm
+
+	files := form.File["files"]
+	paths := form.Value["paths"]
+
+	if len(files) == 0 {
+		httpjson.WriteError(
+			w,
+			http.StatusBadRequest,
+			httpjson.ErrCodeBadRequest,
+			"No files were uploaded",
+		)
+		return
+	}
+
+	if len(files) != len(paths) {
+		httpjson.WriteError(
+			w,
+			http.StatusBadRequest,
+			httpjson.ErrCodeBadRequest,
+			"Every uploaded file must have a destination path",
+		)
+		return
+	}
+
+	uploadedPaths := make(
+		[]string,
+		0,
+		len(files),
+	)
+
+	for index, fileHeader := range files {
+		source, err := fileHeader.Open()
+
+		if err != nil {
+			httpjson.WriteError(
+				w,
+				http.StatusBadRequest,
+				httpjson.ErrCodeBadRequest,
+				err.Error(),
+			)
+			return
+		}
+
+		uploadErr := h.Projects.UploadFile(
+			r.Context(),
+			projectID,
+			paths[index],
+			source,
+			fileHeader.Size,
+		)
+
+		closeErr := source.Close()
+
+		if uploadErr != nil {
+			httpjson.WriteError(
+				w,
+				http.StatusBadRequest,
+				httpjson.ErrCodeBadRequest,
+				uploadErr.Error(),
+			)
+			return
+		}
+
+		if closeErr != nil {
+			httpjson.WriteError(
+				w,
+				http.StatusInternalServerError,
+				httpjson.ErrCodeInternal,
+				closeErr.Error(),
+			)
+			return
+		}
+
+		uploadedPaths = append(
+			uploadedPaths,
+			paths[index],
+		)
+	}
+
+	httpjson.WriteData(
+		w,
+		http.StatusCreated,
+		map[string]interface{}{
+			"paths": uploadedPaths,
+		},
+	)
+}
+
+func (h *FilesHandler) DownloadFile(
+	w http.ResponseWriter,
+	r *http.Request,
+) {
+	projectID := chi.URLParam(
+		r,
+		"projectId",
+	)
+
+	filePath := r.URL.Query().Get("path")
+
+	target, err :=
+		h.Projects.GetProjectFilePath(
+			r.Context(),
+			projectID,
+			filePath,
+		)
+
+	if err != nil {
+		httpjson.WriteError(
+			w,
+			http.StatusNotFound,
+			httpjson.ErrCodeNotFound,
+			err.Error(),
+		)
+		return
+	}
+
+	fileName := filepath.Base(target)
+
+	fileName = strings.ReplaceAll(
+		fileName,
+		`"`,
+		"_",
+	)
+
+	w.Header().Set(
+		"Content-Disposition",
+		`attachment; filename="`+
+			fileName+
+			`"`,
+	)
+
+	http.ServeFile(
+		w,
+		r,
+		target,
+	)
 }

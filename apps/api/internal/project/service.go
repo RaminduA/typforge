@@ -2,9 +2,11 @@ package project
 
 import (
 	"context"
+	"errors"
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"typforge/apps/api/internal/compiler"
@@ -59,16 +61,91 @@ func (s *Service) CreateFile(ctx context.Context, projectID string, projectPath 
 	return s.Store.CreateFile(ctx, projectID, projectPath, content)
 }
 
-func (s *Service) DeleteFile(ctx context.Context, projectID string, projectPath string) error {
-	return s.Store.DeleteFile(ctx, projectID, projectPath)
+func (s *Service) DeleteFile(
+	ctx context.Context,
+	projectID string,
+	projectPath string,
+) error {
+	normalized, err :=
+		NormalizeProjectPath(
+			projectPath,
+		)
+
+	if err != nil {
+		return err
+	}
+
+	currentProject, err :=
+		s.Store.GetProject(
+			ctx,
+			projectID,
+		)
+
+	if err != nil {
+		return err
+	}
+
+	if currentProject.EntryFile ==
+		normalized {
+		return errors.New(
+			"the project entry file cannot be deleted",
+		)
+	}
+
+	return s.Store.DeleteFile(
+		ctx,
+		projectID,
+		normalized,
+	)
 }
 
 func (s *Service) CreateFolder(ctx context.Context, projectID string, folderPath string) error {
 	return s.Store.CreateFolder(ctx, projectID, folderPath)
 }
 
-func (s *Service) DeleteFolder(ctx context.Context, projectID string, folderPath string) error {
-	return s.Store.DeleteFolder(ctx, projectID, folderPath)
+func (s *Service) DeleteFolder(
+	ctx context.Context,
+	projectID string,
+	folderPath string,
+) error {
+	normalized, err :=
+		NormalizeProjectPath(
+			folderPath,
+		)
+
+	if err != nil {
+		return err
+	}
+
+	currentProject, err :=
+		s.Store.GetProject(
+			ctx,
+			projectID,
+		)
+
+	if err != nil {
+		return err
+	}
+
+	containsEntryFile :=
+		currentProject.EntryFile ==
+			normalized ||
+			strings.HasPrefix(
+				currentProject.EntryFile,
+				normalized+"/",
+			)
+
+	if containsEntryFile {
+		return errors.New(
+			"the directory containing the project entry file cannot be deleted",
+		)
+	}
+
+	return s.Store.DeleteFolder(
+		ctx,
+		projectID,
+		normalized,
+	)
 }
 
 func (s *Service) UploadZip(ctx context.Context, projectID string, reader io.ReaderAt, size int64) ([]string, error) {
@@ -170,4 +247,97 @@ func (s *Service) CreateVersion(ctx context.Context, projectID string, message s
 
 func (s *Service) RestoreVersion(ctx context.Context, projectID string, versionID string) error {
 	return s.Store.RestoreVersion(ctx, projectID, versionID)
+}
+
+func (s *Service) RenameEntry(
+	ctx context.Context,
+	projectID string,
+	oldPath string,
+	newName string,
+) (string, error) {
+	return s.Store.RenameEntry(
+		ctx,
+		projectID,
+		oldPath,
+		newName,
+	)
+}
+
+func (s *Service) UploadFile(
+	ctx context.Context,
+	projectID string,
+	projectPath string,
+	reader io.Reader,
+	size int64,
+) error {
+	if size < 0 {
+		return errors.New("invalid uploaded file size")
+	}
+
+	normalized, err :=
+		zipupload.ValidateUploadedFile(
+			projectPath,
+			uint64(size),
+		)
+
+	if err != nil {
+		return err
+	}
+
+	maxSize :=
+		int64(zipupload.MaxSingleFileBytes)
+
+	content, err := io.ReadAll(
+		io.LimitReader(
+			reader,
+			maxSize+1,
+		),
+	)
+	if err != nil {
+		return err
+	}
+
+	if int64(len(content)) > maxSize {
+		return zipupload.ErrFileTooLarge
+	}
+
+	return s.Store.WriteFile(
+		ctx,
+		projectID,
+		normalized,
+		content,
+	)
+}
+
+func (s *Service) GetProjectFilePath(
+	ctx context.Context,
+	projectID string,
+	projectPath string,
+) (string, error) {
+	return s.Store.GetProjectFilePath(
+		projectID,
+		projectPath,
+	)
+}
+
+func (s *Service) DuplicateProject(
+	ctx context.Context,
+	projectID string,
+) (*Project, error) {
+	return s.Store.DuplicateProject(
+		ctx,
+		projectID,
+	)
+}
+
+func (s *Service) ExportProjectZIP(
+	ctx context.Context,
+	projectID string,
+	writer io.Writer,
+) error {
+	return s.Store.WriteProjectZIP(
+		ctx,
+		projectID,
+		writer,
+	)
 }

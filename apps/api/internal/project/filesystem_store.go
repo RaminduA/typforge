@@ -1,6 +1,7 @@
 package project
 
 import (
+	"archive/zip"
 	"context"
 	"encoding/json"
 	"errors"
@@ -518,4 +519,306 @@ func copyDir(src string, dest string, skipTypforge bool) error {
 		_, err = io.Copy(targetFile, sourceFile)
 		return err
 	})
+}
+
+func (s *FileSystemStore) RenameEntry(
+	ctx context.Context,
+	projectID string,
+	oldPath string,
+	newName string,
+) (string, error) {
+	oldNormalized, err := NormalizeProjectPath(oldPath)
+	if err != nil {
+		return "", err
+	}
+
+	newName = strings.TrimSpace(newName)
+	newName = strings.ReplaceAll(newName, "\\", "/")
+
+	if newName == "" ||
+		newName == "." ||
+		newName == ".." ||
+		strings.Contains(newName, "/") {
+		return "", errors.New("invalid new name")
+	}
+
+	oldTarget, err := s.projectFilePath(
+		projectID,
+		oldNormalized,
+	)
+	if err != nil {
+		return "", err
+	}
+
+	if _, err := os.Stat(oldTarget); err != nil {
+		return "", errors.New(
+			"file or directory not found",
+		)
+	}
+
+	parent := filepath.ToSlash(
+		filepath.Dir(
+			filepath.FromSlash(oldNormalized),
+		),
+	)
+
+	if parent == "." {
+		parent = ""
+	}
+
+	newProjectPath := newName
+
+	if parent != "" {
+		newProjectPath =
+			parent + "/" + newName
+	}
+
+	newTarget, err := s.projectFilePath(
+		projectID,
+		newProjectPath,
+	)
+	if err != nil {
+		return "", err
+	}
+
+	if _, err := os.Stat(newTarget); err == nil {
+		return "", errors.New(
+			"a file or directory with that name already exists",
+		)
+	}
+
+	if err := os.Rename(
+		oldTarget,
+		newTarget,
+	); err != nil {
+		return "", err
+	}
+
+	currentProject, err :=
+		s.GetProject(
+			ctx,
+			projectID,
+		)
+
+	if err != nil {
+		_ = os.Rename(
+			newTarget,
+			oldTarget,
+		)
+
+		return "", err
+	}
+
+	entryWasRenamed :=
+		currentProject.EntryFile ==
+			oldNormalized ||
+			strings.HasPrefix(
+				currentProject.EntryFile,
+				oldNormalized+"/",
+			)
+
+	if entryWasRenamed {
+		suffix := strings.TrimPrefix(
+			currentProject.EntryFile,
+			oldNormalized,
+		)
+
+		currentProject.EntryFile =
+			newProjectPath + suffix
+
+		currentProject.UpdatedAt =
+			time.Now().UTC()
+
+		if err := s.saveProject(
+			currentProject,
+		); err != nil {
+			_ = os.Rename(
+				newTarget,
+				oldTarget,
+			)
+
+			return "", err
+		}
+	}
+
+	return newProjectPath, nil
+}
+
+func (s *FileSystemStore) GetProjectFilePath(
+	projectID string,
+	projectPath string,
+) (string, error) {
+	target, err := s.projectFilePath(
+		projectID,
+		projectPath,
+	)
+	if err != nil {
+		return "", err
+	}
+
+	info, err := os.Stat(target)
+	if err != nil {
+		return "", errors.New("file not found")
+	}
+
+	if info.IsDir() {
+		return "", errors.New(
+			"requested path is a directory",
+		)
+	}
+
+	return target, nil
+}
+
+func (s *FileSystemStore) DuplicateProject(
+	ctx context.Context,
+	projectID string,
+) (*Project, error) {
+	source, err := s.GetProject(
+		ctx,
+		projectID,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	duplicate, err := s.CreateProject(
+		ctx,
+		source.Name+" Copy",
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	sourceDir := s.ProjectDir(source.ID)
+	duplicateDir := s.ProjectDir(duplicate.ID)
+
+	if err := copyDir(
+		sourceDir,
+		duplicateDir,
+		true,
+	); err != nil {
+		_ = os.RemoveAll(duplicateDir)
+		return nil, err
+	}
+
+	duplicate.EntryFile = source.EntryFile
+	duplicate.UpdatedAt = time.Now().UTC()
+
+	if err := s.saveProject(duplicate); err != nil {
+		return nil, err
+	}
+
+	return duplicate, nil
+}
+
+func (s *FileSystemStore) WriteProjectZIP(
+	ctx context.Context,
+	projectID string,
+	writer io.Writer,
+) error {
+	projectDir := s.ProjectDir(projectID)
+
+	if _, err := os.Stat(projectDir); err != nil {
+		return errors.New("project not found")
+	}
+
+	zipWriter := zip.NewWriter(writer)
+
+	walkErr := filepath.WalkDir(
+		projectDir,
+		func(
+			currentPath string,
+			entry os.DirEntry,
+			walkErr error,
+		) error {
+			if walkErr != nil {
+				return walkErr
+			}
+
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			default:
+			}
+
+			relativePath, err := filepath.Rel(
+				projectDir,
+				currentPath,
+			)
+			if err != nil {
+				return err
+			}
+
+			relativePath = filepath.ToSlash(
+				relativePath,
+			)
+
+			if relativePath == "." {
+				return nil
+			}
+
+			if relativePath == ".typforge" {
+				return filepath.SkipDir
+			}
+
+			if strings.HasPrefix(
+				relativePath,
+				".typforge/",
+			) {
+				return nil
+			}
+
+			if entry.IsDir() {
+				return nil
+			}
+
+			info, err := entry.Info()
+			if err != nil {
+				return err
+			}
+
+			header, err := zip.FileInfoHeader(info)
+			if err != nil {
+				return err
+			}
+
+			header.Name = relativePath
+			header.Method = zip.Deflate
+
+			zipFile, err := zipWriter.CreateHeader(
+				header,
+			)
+			if err != nil {
+				return err
+			}
+
+			sourceFile, err := os.Open(
+				currentPath,
+			)
+			if err != nil {
+				return err
+			}
+
+			_, copyErr := io.Copy(
+				zipFile,
+				sourceFile,
+			)
+
+			closeErr := sourceFile.Close()
+
+			if copyErr != nil {
+				return copyErr
+			}
+
+			return closeErr
+		},
+	)
+
+	if walkErr != nil {
+		_ = zipWriter.Close()
+		return walkErr
+	}
+
+	return zipWriter.Close()
 }

@@ -44,6 +44,10 @@ func NormalizeProjectPath(input string) (string, error) {
 	}
 
 	parts := strings.Split(cleaned, "/")
+	if len(parts) > 0 && parts[0] == ".typforge" {
+		return "", ErrInvalidPath
+	}
+
 	if len(parts) > 12 {
 		return "", ErrInvalidPath
 	}

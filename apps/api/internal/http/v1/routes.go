@@ -42,16 +42,25 @@ func RegisterRoutes(r chi.Router, h *Handlers) {
 			r.Post("/files", h.Files.CreateFile)
 			r.Put("/files", h.Files.UpdateFile)
 			r.Delete("/files", h.Files.DeleteFile)
+			r.Get("/files/download", h.Files.DownloadFile)
 
 			r.Post("/folders", h.Files.CreateFolder)
 			r.Delete("/folders", h.Files.DeleteFolder)
 
+			r.Patch("/entries/rename", h.Files.RenameEntry)
+
+			r.Post("/uploads", h.Files.UploadEntries)
+
 			r.Post("/upload-zip", h.Files.UploadZip)
+
 			r.Post("/compile", h.Project.Compile)
 
 			r.Get("/versions", h.Version.List)
 			r.Post("/versions", h.Version.Create)
 			r.Post("/versions/{versionId}/restore", h.Version.Restore)
+
+			r.Post("/duplicate", h.Project.Duplicate)
+			r.Get("/export", h.Project.Export)
 		})
 	})
 
