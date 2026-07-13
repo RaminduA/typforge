@@ -3,6 +3,7 @@
 import {
   type ReactNode,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState
 } from "react";
@@ -25,116 +26,75 @@ interface PopupMenuProps {
   onClose: () => void;
 }
 
-export function PopupMenu({
-  open,
-  x,
-  y,
-  items,
-  onClose
-}: PopupMenuProps) {
-  const menuRef =
-    useRef<HTMLDivElement>(null);
+export function PopupMenu({ open, x, y, items, onClose }: PopupMenuProps) {
+  const menuRef = useRef<HTMLDivElement>(null);
 
-  const [
-    position,
-    setPosition
-  ] = useState({ x, y });
+  const [position, setPosition] = useState({ x, y });
+  const [positioned, setPositioned] = useState(false);
 
   useEffect(() => {
     setPosition({ x, y });
   }, [x, y]);
+
+  useLayoutEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    const menu = menuRef.current;
+
+    if (!menu) {
+      return;
+    }
+
+    const bounds = menu.getBoundingClientRect();
+
+    const padding = 8;
+
+    const maximumX = Math.max(padding, window.innerWidth - bounds.width - padding);
+    const maximumY = Math.max(padding, window.innerHeight - bounds.height - padding);
+
+    setPosition({
+      x: Math.max(padding, Math.min(x, maximumX)),
+      y: Math.max(padding, Math.min(y, maximumY))
+    });
+
+    setPositioned(true);
+  }, [open, x, y, items.length]);
+
+  useEffect(() => {
+    if (!open) {
+      setPositioned(false);
+    }
+  }, [open]);
 
   useEffect(() => {
     if (!open) {
       return;
     }
 
-    const frame =
-      window.requestAnimationFrame(
-        () => {
-          const menu =
-            menuRef.current;
+    function handlePointerDown(event: PointerEvent) {
+      const menu = menuRef.current;
 
-          if (!menu) {
-            return;
-          }
-
-          const bounds =
-            menu.getBoundingClientRect();
-
-          const padding = 8;
-
-          setPosition({
-            x: Math.min(
-              x,
-              window.innerWidth -
-                bounds.width -
-                padding
-            ),
-            y: Math.min(
-              y,
-              window.innerHeight -
-                bounds.height -
-                padding
-            )
-          });
-        }
-      );
-
-    function handlePointerDown(
-      event: PointerEvent
-    ) {
-      if (
-        menuRef.current &&
-        !menuRef.current.contains(
-          event.target as Node
-        )
-      ) {
+      if (menu && !menu.contains(event.target as Node)) {
         onClose();
       }
     }
 
-    function handleKeyDown(
-      event: KeyboardEvent
-    ) {
+    function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
         onClose();
       }
     }
 
-    window.addEventListener(
-      "pointerdown",
-      handlePointerDown,
-      true
-    );
-
-    window.addEventListener(
-      "keydown",
-      handleKeyDown
-    );
+    window.addEventListener("pointerdown", handlePointerDown, true);
+    window.addEventListener("keydown", handleKeyDown);
 
     return () => {
-      window.cancelAnimationFrame(
-        frame
-      );
-
-      window.removeEventListener(
-        "pointerdown",
-        handlePointerDown,
-        true
-      );
-
-      window.removeEventListener(
-        "keydown",
-        handleKeyDown
-      );
+      window.removeEventListener("pointerdown", handlePointerDown, true);
+      window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [
-    open,
-    x,
-    y,
-    onClose
-  ]);
+  }, [open, onClose]);
 
   if (!open) {
     return null;
@@ -143,29 +103,22 @@ export function PopupMenu({
   return (
     <div
       ref={menuRef}
-      className="popup-menu"
+      className={positioned ? "popup-menu is-positioned" : "popup-menu"}
       style={{
         left: position.x,
-        top: position.y
+        top: position.y,
+        visibility: positioned ? "visible" : "hidden"
       }}
       role="menu"
     >
       {items.map((item) => (
-        <div
-          key={item.id}
-        >
-          {item.separatorBefore ? (
-            <div className="popup-menu-separator" />
-          ) : null}
+        <div key={item.id}>
+          {item.separatorBefore ? (<div className="popup-menu-separator" />) : null}
 
           <button
             type="button"
             role="menuitem"
-            className={
-              item.danger
-                ? "popup-menu-item danger"
-                : "popup-menu-item"
-            }
+            className={item.danger ? "popup-menu-item danger" : "popup-menu-item"}
             disabled={item.disabled}
             onClick={() => {
               onClose();

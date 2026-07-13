@@ -23,7 +23,7 @@ export function UploadZipModal({ onUpload, onClose }: UploadZipModalProps) {
   }
 
   return (
-    <div className="modal-backdrop">
+    <div className="modal-backdrop app-blur-backdrop">
       <div className="modal">
         <div className="modal-header">
           <strong>Upload ZIP Project</strong>

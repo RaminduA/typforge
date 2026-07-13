@@ -102,7 +102,7 @@ export function ConfirmDialog({
   }
 
   return (
-    <div className="action-dialog-backdrop">
+    <div className="action-dialog-backdrop app-blur-backdrop">
       <div
         className="action-dialog"
         role="alertdialog"
@@ -132,33 +132,19 @@ export function ConfirmDialog({
           <button
             type="button"
             className="action-dialog-cancel"
-            disabled={
-              submitting
-            }
-            onClick={
-              onClose
-            }
+            disabled={submitting}
+            onClick={onClose}
           >
             Cancel
           </button>
 
           <button
             type="button"
-            className={
-              danger
-                ? "action-dialog-submit danger"
-                : "action-dialog-submit"
-            }
-            disabled={
-              submitting
-            }
-            onClick={
-              handleConfirm
-            }
+            className={danger ? "action-dialog-submit danger" : "action-dialog-submit"}
+            disabled={submitting}
+            onClick={handleConfirm}
           >
-            {submitting
-              ? "Deleting..."
-              : confirmLabel}
+            {submitting ? "Deleting..." : confirmLabel}
           </button>
         </div>
       </div>

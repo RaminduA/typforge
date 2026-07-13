@@ -5,11 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { SettingsModal } from "@/components/modals/SettingsModal";
 import { UploadZipModal } from "@/components/modals/UploadZipModal";
 import { api } from "@/lib/api";
-import {
-  findFirstTypFile,
-  isSameOrChildPath,
-  joinProjectPath
-} from "@/lib/file-tree";
+import { findFirstTypFile, isSameOrChildPath, joinProjectPath } from "@/lib/file-tree";
 import { applyTheme, type ThemePreference } from "@/lib/theme";
 import type { CompileResult } from "@/types/build";
 import type { FileNode, Project, VersionSnapshot } from "@/types/project";
@@ -29,31 +25,13 @@ import { MessageDialog } from "@/components/ui/MessageDialog";
 import { TextInputDialog } from "@/components/ui/TextInputDialog";
 
 export function TypforgeShell() {
-  type TextDialogState =
-    | {
-        type: "create-file";
-        parentPath: string;
-      }
-    | {
-        type: "create-folder";
-        parentPath: string;
-      }
-    | {
-        type: "rename-entry";
-        node: FileNode;
-      }
-    | {
-        type: "rename-project";
-      };
+  type TextDialogState = 
+    | { type: "create-file"; parentPath: string; }
+    | {type: "create-folder"; parentPath: string;} 
+    | {type: "rename-entry"; node: FileNode;} 
+    | {type: "rename-project";};
 
-  type DeleteDialogState =
-    | {
-        type: "entry";
-        node: FileNode;
-      }
-    | {
-        type: "project";
-      };
+  type DeleteDialogState = {type: "entry"; node: FileNode;} | {type: "project";};
 
   interface MessageState {
     title: string;
@@ -72,17 +50,21 @@ export function TypforgeShell() {
   const [activeTool, setActiveTool] = useState<ToolTab>("info");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [uploadOpen, setUploadOpen] = useState(false);
-  const [theme, setTheme] = useState<ThemePreference>("dark");
+  const [theme, setTheme] = useState<ThemePreference>("system");
   const [compiling, setCompiling] = useState(false);
   const [layoutReady, setLayoutReady] = useState(false);
   const [textDialog, setTextDialog] = useState<TextDialogState | null>(null);
   const [deleteDialog, setDeleteDialog] = useState<DeleteDialogState | null>(null);
   const [messageDialog, setMessageDialog] = useState<MessageState | null>(null);
 
-  const {
-    defaultLayout,
-    onLayoutChanged
-  } = useDefaultLayout({
+  const fullScreenModalOpen =
+    settingsOpen ||
+    uploadOpen ||
+    textDialog !== null ||
+    deleteDialog !== null ||
+    messageDialog !== null;
+
+  const {defaultLayout, onLayoutChanged} = useDefaultLayout({
     id: "typforge-workspace-layout-v1",
     storage: panelLayoutStorage
   });
@@ -99,20 +81,28 @@ export function TypforgeShell() {
 
   useEffect(() => {
     applyTheme(theme);
+
+    if (theme !== "system") return;
+
+    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+
+    function handleSystemThemeChange() {
+      applyTheme("system");
+    }
+
+    mediaQuery.addEventListener("change",handleSystemThemeChange);
+    return () => {
+      mediaQuery.removeEventListener("change", handleSystemThemeChange);
+    };
   }, [theme]);
 
-  useEffect(() => {
-    setLayoutReady(true);
-  }, []);
+  useEffect(() => {setLayoutReady(true);}, []);
 
-  useEffect(() => {
-    void bootstrap();
-  }, []);
+  useEffect(() => {void bootstrap();}, []);
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
-      const isSaveShortcut =
-        (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s";
+      const isSaveShortcut = (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s";
 
       if (!isSaveShortcut) {
         return;
@@ -253,8 +243,7 @@ export function TypforgeShell() {
   async function handleCreateVersion() {
     if (!project) return;
 
-    const message =
-      window.prompt("Snapshot message", "Manual snapshot") ?? "Manual snapshot";
+    const message = window.prompt("Snapshot message", "Manual snapshot") ?? "Manual snapshot";
 
     await api.createVersion(project.id, message);
     await refreshVersions(project.id);
@@ -276,150 +265,67 @@ export function TypforgeShell() {
     await compileProject(project, false);
   }
 
-  function handleCreateFile(
-    parentPath: string
-  ) {
-    setTextDialog({
-      type: "create-file",
-      parentPath
-    });
+  function handleCreateFile(parentPath: string) {
+    setTextDialog({type: "create-file", parentPath});
   }
 
-  function handleCreateFolder(
-    parentPath: string
-  ) {
-    setTextDialog({
-      type: "create-folder",
-      parentPath
-    });
+  function handleCreateFolder(parentPath: string) {
+    setTextDialog({type: "create-folder", parentPath});
   }
 
-  async function handleUploadFiles(
-    parentPath: string,
-    files: File[]
-  ) {
-    if (
-      !project ||
-      files.length === 0
-    ) {
-      return;
-    }
+  async function handleUploadFiles(parentPath: string, files: File[]) {
+    if (!project || files.length === 0) return;
 
-    const entries =
-      files.map(
+    const entries = files.map(
         (file) => ({
           file,
-
-          path:
-            joinProjectPath(
-              parentPath,
-              file.name
-            )
+          path: joinProjectPath(parentPath, file.name)
         })
       );
 
     try {
-      await api.uploadEntries(
-        project.id,
-        entries
-      );
-
-      await refreshTree(
-        project.id
-      );
+      await api.uploadEntries(project.id, entries);
+      await refreshTree(project.id);
     } catch (error) {
-      window.alert(
-        error instanceof Error
-          ? error.message
-          : "Unable to upload files"
-      );
+      window.alert(error instanceof Error ? error.message : "Unable to upload files");
     }
   }
   
-  async function handleUploadFolder(
-    parentPath: string,
-    files: File[]
-  ) {
-    if (
-      !project ||
-      files.length === 0
-    ) {
-      return;
-    }
+  async function handleUploadFolder(parentPath: string, files: File[]) {
+    if (!project || files.length === 0) return;
 
-    const entries =
-      files.map(
+    const entries = files.map(
         (file) => ({
           file,
-
-          path:
-            joinProjectPath(
-              parentPath,
-
-              file.webkitRelativePath ||
-                file.name
-            )
+          path: joinProjectPath(parentPath, file.webkitRelativePath || file.name)
         })
       );
 
     try {
-      await api.uploadEntries(
-        project.id,
-        entries
-      );
-
-      await refreshTree(
-        project.id
-      );
+      await api.uploadEntries(project.id, entries);
+      await refreshTree(project.id);
     } catch (error) {
-      window.alert(
-        error instanceof Error
-          ? error.message
-          : "Unable to upload folder"
-      );
+      window.alert(error instanceof Error ? error.message : "Unable to upload folder");
     }
   }
 
-  function handleRenameEntry(
-    node: FileNode
-  ) {
-    setTextDialog({
-      type: "rename-entry",
-      node
-    });
+  function handleRenameEntry(node: FileNode) {
+    setTextDialog({type: "rename-entry", node});
   }
 
-  function handleDeleteEntry(
-    node: FileNode
-  ) {
-    setDeleteDialog({
-      type: "entry",
-      node
-    });
+  function handleDeleteEntry(node: FileNode) {
+    setDeleteDialog({type: "entry", node});
   }
 
-  function handleDownloadFile(
-    path: string
-  ) {
+  function handleDownloadFile(path: string) {
     if (!project) {
       return;
     }
 
-    const link =
-      document.createElement(
-        "a"
-      );
+    const link = document.createElement("a");
+    link.href = api.fileDownloadUrl(project.id, path);
 
-    link.href =
-      api.fileDownloadUrl(
-        project.id,
-        path
-      );
-
-    document.body.appendChild(
-      link
-    );
-
+    document.body.appendChild(link);
     link.click();
     link.remove();
   }
@@ -446,27 +352,16 @@ export function TypforgeShell() {
     }
 
     try {
-      const duplicate =
-        await api.duplicateProject(
-          project.id
-        );
+      const duplicate = await api.duplicateProject(project.id);
 
       setMessageDialog({
-        title:
-          "Project duplicated",
-
-        message:
-          `"${duplicate.name}" was created successfully.`
+        title:"Project duplicated",
+        message: `"${duplicate.name}" was created successfully.`
       });
     } catch (error) {
       setMessageDialog({
-        title:
-          "Unable to duplicate project",
-
-        message:
-          error instanceof Error
-            ? error.message
-            : "The project could not be duplicated."
+        title:"Unable to duplicate project",
+        message: error instanceof Error ? error.message : "The project could not be duplicated."
       });
     }
   }
@@ -476,178 +371,83 @@ export function TypforgeShell() {
       return;
     }
 
-    const link =
-      document.createElement(
-        "a"
-      );
+    const link = document.createElement("a");
+    link.href = api.projectExportUrl(project.id);
 
-    link.href =
-      api.projectExportUrl(
-        project.id
-      );
-
-    document.body.appendChild(
-      link
-    );
+    document.body.appendChild(link);
 
     link.click();
     link.remove();
   }
 
   function handleDeleteProject() {
-    setDeleteDialog({
-      type: "project"
-    });
+    setDeleteDialog({type: "project"});
   }
 
-  async function submitTextDialog(
-    value: string
-  ) {
-    if (
-      !project ||
-      !textDialog
-    ) {
+  async function submitTextDialog(value: string) {
+    if (!project || !textDialog) {
       return;
     }
 
-    if (
-      textDialog.type ===
-      "create-file"
-    ) {
-      const path =
-        joinProjectPath(
-          textDialog.parentPath,
-          value
-        );
+    if (textDialog.type === "create-file") {
+      const path = joinProjectPath(textDialog.parentPath, value);
 
-      await api.createFile(
-        project.id,
-        path,
-        ""
-      );
+      await api.createFile(project.id, path, "");
 
-      await refreshTree(
-        project.id
-      );
+      await refreshTree(project.id);
 
-      await openFile(
-        project.id,
-        path
-      );
+      await openFile(project.id, path);
 
       return;
     }
 
-    if (
-      textDialog.type ===
-      "create-folder"
-    ) {
-      const path =
-        joinProjectPath(
-          textDialog.parentPath,
-          value
-        );
+    if (textDialog.type === "create-folder") {
+      const path = joinProjectPath(textDialog.parentPath, value);
 
-      await api.createFolder(
-        project.id,
-        path
-      );
+      await api.createFolder(project.id, path);
 
-      await refreshTree(
-        project.id
-      );
+      await refreshTree(project.id);
 
       return;
     }
 
-    if (
-      textDialog.type ===
-      "rename-entry"
-    ) {
-      const node =
-        textDialog.node;
+    if (textDialog.type === "rename-entry") {
+      const node = textDialog.node;
 
-      const result =
-        await api.renameEntry(
-          project.id,
-          node.path,
-          value
-        );
+      const result = await api.renameEntry(project.id, node.path, value);
 
-      if (
-        isSameOrChildPath(
-          activePath,
-          node.path
-        )
-      ) {
-        const suffix =
-          activePath!.slice(
-            node.path.length
-          );
+      if (isSameOrChildPath(activePath, node.path)) {
+        const suffix = activePath!.slice(node.path.length);
 
-        setActivePath(
-          result.path +
-            suffix
-        );
+        setActivePath(result.path + suffix);
       }
 
-      const updatedProject =
-        await api.getProject(
-          project.id
-        );
+      const updatedProject = await api.getProject(project.id);
+      setProject(updatedProject);
 
-      setProject(
-        updatedProject
-      );
-
-      await refreshTree(
-        project.id
-      );
+      await refreshTree(project.id);
 
       return;
     }
 
-    if (
-      textDialog.type ===
-      "rename-project"
-    ) {
-      const updated =
-        await api.updateProject(
-          project.id,
-          value
-        );
-
-      setProject(
-        updated
-      );
+    if (textDialog.type === "rename-project") {
+      const updated = await api.updateProject(project.id, value);
+      setProject(updated);
     }
   }
 
   async function confirmDeletion() {
-    if (
-      !project ||
-      !deleteDialog
-    ) {
+    if (!project || !deleteDialog) {
       return;
     }
 
-    if (
-      deleteDialog.type ===
-      "project"
-    ) {
-      await api.deleteProject(
-        project.id
-      );
+    if (deleteDialog.type === "project") {
+      await api.deleteProject(project.id);
 
-      const remaining =
-        await api.listProjects();
+      const remaining = await api.listProjects();
 
-      if (
-        remaining.length === 0
-      ) {
-        await api.createProject(
-          "Untitled Project"
-        );
+      if (remaining.length === 0) {
+        await api.createProject("Untitled Project");
       }
 
       window.location.reload();
@@ -655,53 +455,24 @@ export function TypforgeShell() {
       return;
     }
 
-    const node =
-      deleteDialog.node;
+    const node = deleteDialog.node;
 
-    if (
-      node.type === "folder"
-    ) {
-      await api.deleteFolder(
-        project.id,
-        node.path
-      );
+    if (node.type === "folder") {
+      await api.deleteFolder(project.id, node.path);
     } else {
-      await api.deleteFile(
-        project.id,
-        node.path
-      );
+      await api.deleteFile(project.id, node.path);
     }
 
-    const loadedTree =
-      await api.getTree(
-        project.id
-      );
+    const loadedTree = await api.getTree(project.id);
+    setTree(loadedTree);
 
-    setTree(
-      loadedTree
-    );
-
-    if (
-      isSameOrChildPath(
-        activePath,
-        node.path
-      )
-    ) {
-      const firstTypFile =
-        findFirstTypFile(
-          loadedTree
-        );
+    if (isSameOrChildPath(activePath, node.path)) {
+      const firstTypFile = findFirstTypFile(loadedTree);
 
       if (firstTypFile) {
-        await openFile(
-          project.id,
-          firstTypFile.path
-        );
+        await openFile(project.id, firstTypFile.path);
       } else {
-        setActivePath(
-          undefined
-        );
-
+        setActivePath(undefined);
         setContent("");
       }
     }
@@ -716,7 +487,7 @@ export function TypforgeShell() {
       <Group
         id="typforge-workspace"
         orientation="horizontal"
-        className="shell"
+        className={fullScreenModalOpen ? "shell shell-modal-blurred" : "shell"}
         defaultLayout={defaultLayout}
         onLayoutChanged={onLayoutChanged}
       >
@@ -821,63 +592,30 @@ export function TypforgeShell() {
         <TextInputDialog
           open
           title={
-            textDialog?.type ===
-            "create-file"
-              ? "Create new file"
-
-              : textDialog?.type ===
-                "create-folder"
-                ? "Create new folder"
-
-                : textDialog?.type ===
-                  "rename-project"
-                  ? "Rename project"
-
-                  : textDialog?.node.type ===
-                    "folder"
-                    ? "Rename directory"
-
-                    : "Rename file"
+            textDialog?.type === "create-file" ? "Create new file"
+            : textDialog?.type === "create-folder" ? "Create new folder"
+            : textDialog?.type === "rename-project" ? "Rename project"
+              : textDialog?.node.type === "folder" ? "Rename directory"
+                : "Rename file"
           }
 
           placeholder={
-            textDialog?.type ===
-            "create-folder"
-              ? "Folder name"
-
-              : textDialog?.type ===
-                "rename-project"
-                ? "Project name"
-
-                : "File name"
+            textDialog?.type === "create-folder" ? "Folder name"
+            : textDialog?.type === "rename-project" ? "Project name"
+              : "File name"
           }
 
           initialValue={
-            textDialog?.type ===
-            "create-file"
-              ? ".typ"
-
-              : textDialog?.type ===
-                "create-folder"
-                ? ""
-
-                : textDialog?.type ===
-                  "rename-project"
-                  ? project?.name ?? ""
-
-                  : textDialog?.node.name ?? ""
+            textDialog?.type === "create-file" ? ".typ"
+            : textDialog?.type === "create-folder" ? ""
+            : textDialog?.type === "rename-project" ? project?.name ?? ""
+              : textDialog?.node.name ?? ""
           }
 
           selectionMode={
-            textDialog?.type ===
-            "create-file"
-              ? "before-extension"
-
-              : textDialog?.type ===
-                "create-folder"
-                ? "end"
-
-                : "select-all"
+            textDialog?.type === "create-file" ? "before-extension"
+            : textDialog?.type === "create-folder" ? "end"
+              : "select-all"
           }
 
           validateValue={

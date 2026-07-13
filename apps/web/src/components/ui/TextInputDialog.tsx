@@ -135,14 +135,12 @@ export function TextInputDialog({
 
   return (
     <div
-      className="action-dialog-backdrop"
+      className="action-dialog-backdrop app-blur-backdrop"
       role="presentation"
     >
       <form
         className="action-dialog"
-        onSubmit={
-          handleSubmit
-        }
+        onSubmit={handleSubmit}
         role="dialog"
         aria-modal="true"
         aria-labelledby="text-dialog-title"
@@ -159,21 +157,12 @@ export function TextInputDialog({
             ref={inputRef}
             className="action-dialog-input"
             value={value}
-            placeholder={
-              placeholder
-            }
-            disabled={
-              submitting
-            }
-            onChange={
-              (event) => {
-                setValue(
-                  event.target.value
-                );
-
+            placeholder={placeholder}
+            disabled={submitting}
+            onChange={(event) => {
+                setValue(event.target.value);
                 setError("");
-              }
-            }
+              }}
           />
 
           {error ? (
@@ -187,12 +176,8 @@ export function TextInputDialog({
           <button
             type="button"
             className="action-dialog-cancel"
-            disabled={
-              submitting
-            }
-            onClick={
-              onClose
-            }
+            disabled={submitting}
+            onClick={onClose}
           >
             Cancel
           </button>
@@ -200,14 +185,9 @@ export function TextInputDialog({
           <button
             type="submit"
             className="action-dialog-submit"
-            disabled={
-              !valid ||
-              submitting
-            }
+            disabled={!valid || submitting}
           >
-            {submitting
-              ? "Saving..."
-              : submitLabel}
+            {submitting ? "Saving..." : submitLabel}
           </button>
         </div>
       </form>

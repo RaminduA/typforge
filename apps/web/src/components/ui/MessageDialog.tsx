@@ -1,8 +1,6 @@
 "use client";
 
-import {
-  useEffect
-} from "react";
+import { useEffect } from "react";
 
 interface MessageDialogProps {
   open: boolean;
@@ -25,39 +23,25 @@ export function MessageDialog({
       return;
     }
 
-    function handleKeyDown(
-      event: KeyboardEvent
-    ) {
-      if (
-        event.key === "Escape" ||
-        event.key === "Enter"
-      ) {
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape" || event.key === "Enter") {
         onClose();
       }
     }
 
-    window.addEventListener(
-      "keydown",
-      handleKeyDown
-    );
+    window.addEventListener("keydown", handleKeyDown);
 
     return () => {
-      window.removeEventListener(
-        "keydown",
-        handleKeyDown
-      );
+      window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [
-    open,
-    onClose
-  ]);
+  }, [open, onClose]);
 
   if (!open) {
     return null;
   }
 
   return (
-    <div className="action-dialog-backdrop">
+    <div className="action-dialog-backdrop app-blur-backdrop">
       <div
         className="action-dialog"
         role="dialog"
@@ -78,9 +62,7 @@ export function MessageDialog({
             type="button"
             className="action-dialog-submit"
             autoFocus
-            onClick={
-              onClose
-            }
+            onClick={onClose}
           >
             {buttonLabel}
           </button>

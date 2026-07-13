@@ -1,13 +1,16 @@
-export type ThemePreference = "system" | "light" | "dark";
+export type ThemePreference = "system" | "dark" | "light";
+type ResolvedTheme = "dark" | "light";
 
-export function applyTheme(theme: ThemePreference) {
-  const root = document.documentElement;
+function getSystemTheme(): ResolvedTheme {
+  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+}
 
-  if (theme === "system") {
-    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-    root.dataset.theme = prefersDark ? "dark" : "light";
-    return;
-  }
+export function applyTheme(preference: ThemePreference): void {
+  const resolvedTheme: ResolvedTheme = preference === "system" ? getSystemTheme() : preference;
 
-  root.dataset.theme = theme;
+  document.documentElement.dataset.theme = resolvedTheme;
+
+  document.documentElement.dataset.themePreference = preference;
+
+  document.documentElement.style.colorScheme = resolvedTheme;
 }
