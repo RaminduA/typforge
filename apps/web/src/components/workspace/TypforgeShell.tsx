@@ -1,6 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState
+} from "react";
 
 import { SettingsModal } from "@/components/modals/SettingsModal";
 import { UploadZipModal } from "@/components/modals/UploadZipModal";
@@ -23,6 +29,12 @@ import { panelLayoutStorage } from "@/lib/panel-layout-storage";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { MessageDialog } from "@/components/ui/MessageDialog";
 import { TextInputDialog } from "@/components/ui/TextInputDialog";
+import {
+  DEFAULT_EDITOR_SETTINGS,
+  loadEditorSettings,
+  saveEditorSettings,
+  type EditorSettings
+} from "@/lib/editor-settings";
 
 export function TypforgeShell() {
   type TextDialogState = 
@@ -56,6 +68,11 @@ export function TypforgeShell() {
   const [textDialog, setTextDialog] = useState<TextDialogState | null>(null);
   const [deleteDialog, setDeleteDialog] = useState<DeleteDialogState | null>(null);
   const [messageDialog, setMessageDialog] = useState<MessageState | null>(null);
+  const [editorSettings, setEditorSettings] = useState<EditorSettings>(DEFAULT_EDITOR_SETTINGS);
+  const [editorDirty, setEditorDirty] = useState(false);
+  const [pdfRevision, setPdfRevision] = useState(0);
+  const editRevisionRef = useRef(0);
+  const compileInFlightRef = useRef(false);
 
   const fullScreenModalOpen =
     settingsOpen ||
@@ -71,8 +88,8 @@ export function TypforgeShell() {
 
   const pdfUrl = useMemo(() => {
     if (!pdfPath) return undefined;
-    return `${api.absoluteUrl(pdfPath)}?t=${Date.now()}`;
-  }, [pdfPath]);
+    return `${api.absoluteUrl(pdfPath)}?revision=${pdfRevision}`;
+  },[pdfPath,pdfRevision]);
 
   const downloadUrl = useMemo(() => {
     if (!downloadPath) return undefined;
@@ -96,31 +113,19 @@ export function TypforgeShell() {
     };
   }, [theme]);
 
-  useEffect(() => {setLayoutReady(true);}, []);
-
-  useEffect(() => {void bootstrap();}, []);
+  useEffect(() => {
+    setEditorSettings(loadEditorSettings());
+    setLayoutReady(true);
+  }, []);
 
   useEffect(() => {
-    function handleKeyDown(event: KeyboardEvent) {
-      const isSaveShortcut = (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s";
-
-      if (!isSaveShortcut) {
-        return;
-      }
-
-      event.preventDefault();
-
-      if (!compiling) {
-        void compileProject(project, true);
-      }
+    if (!layoutReady) {
+      return;
     }
+    saveEditorSettings(editorSettings);
+  }, [editorSettings,layoutReady]);
 
-    window.addEventListener("keydown", handleKeyDown);
-
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [project, activePath, content, compiling]);
+  useEffect(() => {void bootstrap();}, []);
 
   async function bootstrap() {
     const existing = await api.listProjects();
@@ -152,60 +157,138 @@ export function TypforgeShell() {
     setVersions(await api.listVersions(projectId));
   }
 
-  async function openFile(projectId: string, path: string) {
-    const file = await api.getFile(projectId, path);
-    setActivePath(path);
-    setContent(file.content);
-  }
+  async function openFile(projectId: string,path: string) {
+  const file = await api.getFile(projectId, path);
+
+  /*
+   * Opening a file is not
+   * considered an editor change.
+   */
+  editRevisionRef.current += 1;
+
+  setEditorDirty(false);
+  setActivePath(path);
+  setContent(file.content);
+}
 
   async function handleOpenFile(path: string) {
     if (!project) return;
     await openFile(project.id, path);
   }
 
-  async function compileProject(targetProject = project, saveBeforeCompile = true) {
-    if (!targetProject) return;
-
-    setCompiling(true);
-
-    try {
-      if (saveBeforeCompile && activePath) {
-        await api.updateFile(targetProject.id, activePath, content);
-        await refreshTree(targetProject.id);
-      }
-
-      const result: CompileResult = await api.compile(
-        targetProject.id,
-        targetProject.entryFile
-      );
-
-      if (result.logsUrl) {
-        const logResult = await api.getLogs(result.buildId);
-        setLogs(logResult.logs);
-      } else {
-        setLogs(
-          result.diagnostics?.map((d) => `${d.severity}: ${d.message}`).join("\n") ?? ""
-        );
-      }
-
-      if (result.ok) {
-        setPdfPath(result.pdfUrl);
-        setDownloadPath(result.downloadUrl);
-      } else {
-        setToolsOpen(true);
-        setActiveTool("logs");
-      }
-    } catch (error) {
-      setLogs(error instanceof Error ? error.message : "Compile failed");
-      setToolsOpen(true);
-      setActiveTool("logs");
-    } finally {
-      setCompiling(false);
-    }
+  function handleEditorChange(value: string) {
+    editRevisionRef.current += 1;
+    setContent(value);
+    setEditorDirty(true);
   }
 
+  const compileProject = useCallback(
+    async (targetProject = project, saveBeforeCompile = true): Promise<boolean> => {
+      if (!targetProject || compileInFlightRef.current) {
+        return false;
+      }
+
+      compileInFlightRef.current = true;
+      setCompiling(true);
+      let saveCompleted = !saveBeforeCompile || !activePath;
+
+      try {
+        if (saveBeforeCompile && activePath) {
+          await api.updateFile(targetProject.id, activePath, content);
+          saveCompleted = true;
+        }
+
+        const result: CompileResult = await api.compile(targetProject.id, targetProject.entryFile);
+
+        if (result.logsUrl) {
+          const logResult = await api.getLogs(result.buildId);
+          setLogs(logResult.logs);
+        } else {
+          setLogs(result.diagnostics?.map((diagnostic) =>
+             `${diagnostic.severity}: ${diagnostic.message}`).join("\n") ?? "");
+        }
+
+        if (result.ok) {
+          setPdfPath(result.pdfUrl);
+          setDownloadPath(result.downloadUrl);
+
+          /*
+           * Force the PDF iframe to load the new build
+           * even when the backend URL stays unchanged.
+           */
+          setPdfRevision((current) => current + 1);
+        } else {
+          setToolsOpen(true);
+          setActiveTool("logs");
+        }
+
+        return true;
+      } catch (error) {
+        setLogs(error instanceof Error ? error.message : "Compile failed");
+        setToolsOpen(true);
+        setActiveTool("logs");
+
+        /*
+         * A save may have completed even when compilation failed.
+         */
+        return saveCompleted;
+      } finally {
+        compileInFlightRef.current = false;
+        setCompiling(false);
+      }
+    }, [project, activePath, content]
+  );
+
+  const saveAndCompileCurrent = useCallback(
+    async () => {
+      const revision = editRevisionRef.current;
+      const handled = await compileProject(project, true);
+
+      /*
+       * Clear dirty state only when no newer edit happened during compilation.
+       */
+      if (handled && editRevisionRef.current === revision) {
+        setEditorDirty(false);
+      }
+    }, [compileProject, project]
+  );
+
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      const isSaveShortcut = (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s";
+
+      if (!isSaveShortcut) {
+        return;
+      }
+
+      event.preventDefault();
+
+      if (!compiling) {
+        void saveAndCompileCurrent();
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [compiling, saveAndCompileCurrent]);
+
+  useEffect(() => {
+    if (!editorSettings.realtimeCompilation || !editorDirty || !project || !activePath || compiling) {
+      return;
+    }
+
+    /*
+     * Wait until typing pauses. Every new edit resets this timer.
+     */
+    const timeoutId = window.setTimeout(() => { void saveAndCompileCurrent(); }, 750);
+    return () => { window.clearTimeout(timeoutId); };
+  }, [editorSettings.realtimeCompilation, editorDirty, project, activePath, content, compiling, saveAndCompileCurrent]);
+
   async function handleCompile() {
-    await compileProject(project, true);
+    await saveAndCompileCurrent();
   }
 
   async function handleNewFile() {
@@ -534,7 +617,8 @@ export function TypforgeShell() {
             <EditorPane
               activePath={activePath}
               content={content}
-              onChange={setContent}
+              fontSize={editorSettings.fontSize}
+              onChange={handleEditorChange}
               onOpenTools={() => setToolsOpen((value) => !value)}
             />
           </div>
@@ -576,7 +660,9 @@ export function TypforgeShell() {
       {settingsOpen ? (
         <SettingsModal
           theme={theme}
+          editorSettings={editorSettings}
           onChangeTheme={setTheme}
+          onChangeEditorSettings={setEditorSettings}
           onClose={() => setSettingsOpen(false)}
         />
       ) : null}

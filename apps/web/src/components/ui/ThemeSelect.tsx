@@ -62,7 +62,7 @@ export function ThemeSelect({value, onChange}: ThemeSelectProps) {
   return (
     <div
       ref={containerRef}
-      className="theme-select"
+      className={open ? "theme-select open" : "theme-select"}
     >
       <button
         type="button"
