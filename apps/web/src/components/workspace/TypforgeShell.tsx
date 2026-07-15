@@ -35,6 +35,7 @@ import {
   saveEditorSettings,
   type EditorSettings
 } from "@/lib/editor-settings";
+import type { OpenEditorFile } from "@/types/editor";
 
 export function TypforgeShell() {
   type TextDialogState = 
@@ -52,8 +53,8 @@ export function TypforgeShell() {
 
   const [project, setProject] = useState<Project>();
   const [tree, setTree] = useState<FileNode>();
+  const [openFiles, setOpenFiles] = useState<OpenEditorFile[]>([]);
   const [activePath, setActivePath] = useState<string>();
-  const [content, setContent] = useState("");
   const [pdfPath, setPdfPath] = useState<string>();
   const [downloadPath, setDownloadPath] = useState<string>();
   const [logs, setLogs] = useState("");
@@ -68,10 +69,9 @@ export function TypforgeShell() {
   const [textDialog, setTextDialog] = useState<TextDialogState | null>(null);
   const [deleteDialog, setDeleteDialog] = useState<DeleteDialogState | null>(null);
   const [messageDialog, setMessageDialog] = useState<MessageState | null>(null);
+  const [pendingClosePath, setPendingClosePath] = useState<string | null>(null);
   const [editorSettings, setEditorSettings] = useState<EditorSettings>(DEFAULT_EDITOR_SETTINGS);
-  const [editorDirty, setEditorDirty] = useState(false);
   const [pdfRevision, setPdfRevision] = useState(0);
-  const editRevisionRef = useRef(0);
   const compileInFlightRef = useRef(false);
 
   const fullScreenModalOpen =
@@ -79,7 +79,8 @@ export function TypforgeShell() {
     uploadOpen ||
     textDialog !== null ||
     deleteDialog !== null ||
-    messageDialog !== null;
+    messageDialog !== null ||
+    pendingClosePath !== null;
 
   const {defaultLayout, onLayoutChanged} = useDefaultLayout({
     id: "typforge-workspace-layout-v1",
@@ -95,6 +96,11 @@ export function TypforgeShell() {
     if (!downloadPath) return undefined;
     return api.absoluteUrl(downloadPath);
   }, [downloadPath]);
+
+  const activeFile = useMemo(() => openFiles.find((file) => file.path === activePath),[openFiles, activePath]);
+  const content = activeFile?.content ?? "";
+  const editorDirty = Boolean(activeFile && activeFile.content !== activeFile.savedContent);
+  const hasDirtyFiles = useMemo(() => openFiles.some((file) => file.content !== file.savedContent),[openFiles]);
 
   useEffect(() => {
     applyTheme(theme);
@@ -127,6 +133,21 @@ export function TypforgeShell() {
 
   useEffect(() => {void bootstrap();}, []);
 
+  useEffect(() => {
+    if (!hasDirtyFiles) return;
+
+    function handleBeforeUnload(event: BeforeUnloadEvent) {
+      event.preventDefault();
+      event.returnValue = "";
+    }
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, [hasDirtyFiles]);
+
   async function bootstrap() {
     const existing = await api.listProjects();
     const selected = existing[0] ?? (await api.createProject("Untitled Project"));
@@ -142,8 +163,6 @@ export function TypforgeShell() {
     }
 
     await refreshVersions(selected.id);
-
-    // Auto-load the current compiled PDF preview when the app starts.
     await compileProject(selected, false);
   }
 
@@ -157,19 +176,35 @@ export function TypforgeShell() {
     setVersions(await api.listVersions(projectId));
   }
 
-  async function openFile(projectId: string,path: string) {
-  const file = await api.getFile(projectId, path);
+  async function openFile(projectId: string,path: string,forceReload = false) {
+    const existingFile = openFiles.find((file) => file.path ===path);
 
-  /*
-   * Opening a file is not
-   * considered an editor change.
-   */
-  editRevisionRef.current += 1;
+    if (existingFile && !forceReload) {
+      setActivePath(path);
+      return;
+    }
 
-  setEditorDirty(false);
-  setActivePath(path);
-  setContent(file.content);
-}
+    const file = await api.getFile(projectId, path);
+
+    setOpenFiles((current) => {
+      const alreadyOpen = current.some((openFile) => openFile.path ===path);
+
+      if (alreadyOpen) {
+        return current.map((openFile) =>
+            openFile.path === path
+              ? { path, content: file.content, savedContent: file.content }
+              : openFile
+        );
+      }
+
+      return [
+        ...current,
+        { path, content: file.content, savedContent: file.content }
+      ];
+    });
+
+    setActivePath(path);
+  }
 
   async function handleOpenFile(path: string) {
     if (!project) return;
@@ -177,45 +212,92 @@ export function TypforgeShell() {
   }
 
   function handleEditorChange(value: string) {
-    editRevisionRef.current += 1;
-    setContent(value);
-    setEditorDirty(true);
+    if (!activePath) {
+      return;
+    }
+
+    setOpenFiles(current => current.map(file => file.path === activePath? { ...file, content:value }: file));
   }
 
-  const compileProject = useCallback(
-    async (targetProject = project, saveBeforeCompile = true): Promise<boolean> => {
-      if (!targetProject || compileInFlightRef.current) {
-        return false;
-      }
+  function handleSelectEditorTab(path: string) {
+    setActivePath(path);
+  }
+
+  function closeEditorTab(path: string) {
+    const closingIndex = openFiles.findIndex((file) => file.path === path);
+
+    if (closingIndex < 0) {
+      return;
+    }
+
+    const remainingFiles = openFiles.filter((file) => file.path !== path);
+
+    setOpenFiles(remainingFiles);
+
+    if (activePath !== path) {
+      return;
+    }
+
+    const nextFile = remainingFiles[Math.min(closingIndex, remainingFiles.length - 1)];
+
+    setActivePath(nextFile?.path);
+  }
+
+  function handleRequestCloseEditorTab(path: string) {
+    const file = openFiles.find((openFile) => openFile.path === path);
+
+    if (!file) {
+      return;
+    }
+
+    const dirty = file.content !== file.savedContent;
+
+    if (dirty) {
+      setPendingClosePath(path);
+      return;
+    }
+
+    closeEditorTab(path);
+  }
+
+  async function confirmDiscardAndCloseTab() {
+    if (!pendingClosePath) return;
+
+    closeEditorTab(pendingClosePath);
+}
+
+  const compileProject = useCallback(async (targetProject = project,saveBeforeCompile = true): Promise<boolean> => {
+      if (!targetProject || compileInFlightRef.current) return false;
 
       compileInFlightRef.current = true;
       setCompiling(true);
-      let saveCompleted = !saveBeforeCompile || !activePath;
+
+      const fileToSave = saveBeforeCompile ? activeFile : undefined;
+
+      let saveCompleted = !fileToSave;
 
       try {
-        if (saveBeforeCompile && activePath) {
-          await api.updateFile(targetProject.id, activePath, content);
+        if (fileToSave) {
+          await api.updateFile(targetProject.id, fileToSave.path, fileToSave.content);
           saveCompleted = true;
+          setOpenFiles((current) => current.map((file) => file.path === fileToSave.path ? { ...file, savedContent: fileToSave.content } : file));
         }
 
-        const result: CompileResult = await api.compile(targetProject.id, targetProject.entryFile);
+        const result:CompileResult = await api.compile(targetProject.id, targetProject.entryFile);
 
         if (result.logsUrl) {
           const logResult = await api.getLogs(result.buildId);
           setLogs(logResult.logs);
         } else {
-          setLogs(result.diagnostics?.map((diagnostic) =>
-             `${diagnostic.severity}: ${diagnostic.message}`).join("\n") ?? "");
+          setLogs(
+            result.diagnostics?.map((diagnostic) => 
+              `${diagnostic.severity}: ${diagnostic.message}`).join("\n") ?? ""
+          );
         }
 
         if (result.ok) {
           setPdfPath(result.pdfUrl);
           setDownloadPath(result.downloadUrl);
-
-          /*
-           * Force the PDF iframe to load the new build
-           * even when the backend URL stays unchanged.
-           */
           setPdfRevision((current) => current + 1);
         } else {
           setToolsOpen(true);
@@ -223,34 +305,25 @@ export function TypforgeShell() {
         }
 
         return true;
-      } catch (error) {
+      } catch (
+        error
+      ) {
         setLogs(error instanceof Error ? error.message : "Compile failed");
         setToolsOpen(true);
         setActiveTool("logs");
 
-        /*
-         * A save may have completed even when compilation failed.
-         */
         return saveCompleted;
       } finally {
         compileInFlightRef.current = false;
         setCompiling(false);
       }
-    }, [project, activePath, content]
+    }, [project, activeFile]
   );
 
   const saveAndCompileCurrent = useCallback(
     async () => {
-      const revision = editRevisionRef.current;
-      const handled = await compileProject(project, true);
-
-      /*
-       * Clear dirty state only when no newer edit happened during compilation.
-       */
-      if (handled && editRevisionRef.current === revision) {
-        setEditorDirty(false);
-      }
-    }, [compileProject, project]
+      await compileProject(project, true);
+    },[compileProject, project]
   );
 
   useEffect(() => {
@@ -280,9 +353,6 @@ export function TypforgeShell() {
       return;
     }
 
-    /*
-     * Wait until typing pauses. Every new edit resets this timer.
-     */
     const timeoutId = window.setTimeout(() => { void saveAndCompileCurrent(); }, 750);
     return () => { window.clearTimeout(timeoutId); };
   }, [editorSettings.realtimeCompilation, editorDirty, project, activePath, content, compiling, saveAndCompileCurrent]);
@@ -318,8 +388,6 @@ export function TypforgeShell() {
     await api.uploadZip(project.id, file);
     await refreshTree(project.id);
     setUploadOpen(false);
-
-    // Refresh preview after upload because project files may have changed.
     await compileProject(project, false);
   }
 
@@ -336,13 +404,15 @@ export function TypforgeShell() {
     if (!project) return;
 
     await api.restoreVersion(project.id, versionId);
+    setOpenFiles([]);
+    setActivePath(undefined);
     await refreshTree(project.id);
 
     const loadedTree = await api.getTree(project.id);
     const firstTyp = findFirstTypFile(loadedTree);
 
     if (firstTyp) {
-      await openFile(project.id, firstTyp.path);
+      await openFile(project.id, firstTyp.path, true);
     }
 
     await compileProject(project, false);
@@ -499,10 +569,20 @@ export function TypforgeShell() {
 
       const result = await api.renameEntry(project.id, node.path, value);
 
-      if (isSameOrChildPath(activePath, node.path)) {
-        const suffix = activePath!.slice(node.path.length);
+      function renamedPath(currentPath: string) {
+        const suffix = currentPath.slice(node.path.length);
 
-        setActivePath(result.path + suffix);
+        return result.path + suffix;
+      }
+
+      setOpenFiles(current => current.map((file) =>
+          isSameOrChildPath(file.path, node.path)
+            ? { ...file, path: renamedPath(file.path) }
+            : file
+      ));
+
+      if (isSameOrChildPath(activePath, node.path)) {
+        setActivePath(renamedPath(activePath!));
       }
 
       const updatedProject = await api.getProject(project.id);
@@ -549,14 +629,25 @@ export function TypforgeShell() {
     const loadedTree = await api.getTree(project.id);
     setTree(loadedTree);
 
-    if (isSameOrChildPath(activePath, node.path)) {
+    const activeFileWasDeleted = isSameOrChildPath(activePath, node.path);
+    const remainingOpenFiles = openFiles.filter((file) => !isSameOrChildPath(file.path, node.path));
+
+    setOpenFiles(remainingOpenFiles);
+
+    if (activeFileWasDeleted) {
+      const nextOpenFile = remainingOpenFiles[0];
+
+      if (nextOpenFile) {
+        setActivePath(nextOpenFile.path);
+        return;
+      }
+
       const firstTypFile = findFirstTypFile(loadedTree);
 
       if (firstTypFile) {
-        await openFile(project.id, firstTypFile.path);
+        await openFile(project.id, firstTypFile.path, true);
       } else {
         setActivePath(undefined);
-        setContent("");
       }
     }
   }
@@ -580,7 +671,7 @@ export function TypforgeShell() {
           minSize="220px"
           maxSize="360px"
         >
-          <div className="workspace-panel">
+          <div className="workspace-panel workspace-panel-sidebar">
             <LeftSidebar
               project={project}
               tree={tree}
@@ -613,12 +704,16 @@ export function TypforgeShell() {
           defaultSize="36%"
           minSize="360px"
         >
-          <div className="workspace-panel">
+          <div className="workspace-panel workspace-panel-editor">
             <EditorPane
+              openFiles={openFiles}
               activePath={activePath}
               content={content}
               fontSize={editorSettings.fontSize}
+              toolsOpen={toolsOpen}
               onChange={handleEditorChange}
+              onSelectTab={handleSelectEditorTab}
+              onCloseTab={handleRequestCloseEditorTab}
               onOpenTools={() => setToolsOpen((value) => !value)}
             />
           </div>
@@ -634,7 +729,7 @@ export function TypforgeShell() {
           defaultSize="46%"
           minSize="400px"
         >
-          <div className="workspace-panel">
+          <div className="workspace-panel workspace-panel-right">
             {toolsOpen ? (
               <ToolsPanel
                 activeTab={activeTool}
@@ -679,29 +774,29 @@ export function TypforgeShell() {
           open
           title={
             textDialog?.type === "create-file" ? "Create new file"
-            : textDialog?.type === "create-folder" ? "Create new folder"
-            : textDialog?.type === "rename-project" ? "Rename project"
-              : textDialog?.node.type === "folder" ? "Rename directory"
-                : "Rename file"
+              : textDialog?.type === "create-folder" ? "Create new folder"
+                : textDialog?.type === "rename-project" ? "Rename project"
+                  : textDialog?.node.type === "folder" ? "Rename directory"
+                    : "Rename file"
           }
 
           placeholder={
             textDialog?.type === "create-folder" ? "Folder name"
-            : textDialog?.type === "rename-project" ? "Project name"
-              : "File name"
+              : textDialog?.type === "rename-project" ? "Project name"
+                : "File name"
           }
 
           initialValue={
             textDialog?.type === "create-file" ? ".typ"
-            : textDialog?.type === "create-folder" ? ""
-            : textDialog?.type === "rename-project" ? project?.name ?? ""
-              : textDialog?.node.name ?? ""
+              : textDialog?.type === "create-folder" ? ""
+                : textDialog?.type === "rename-project" ? project?.name ?? ""
+                  : textDialog?.node.name ?? ""
           }
 
           selectionMode={
             textDialog?.type === "create-file" ? "before-extension"
-            : textDialog?.type === "create-folder" ? "end"
-              : "select-all"
+              : textDialog?.type === "create-folder" ? "end"
+                : "select-all"
           }
 
           validateValue={
@@ -728,9 +823,24 @@ export function TypforgeShell() {
       ) : null}
 
       <ConfirmDialog
+        open={pendingClosePath !== null}
+        title="Unsaved changes"
+        confirmLabel="Discard changes"
+        submittingLabel="Closing..."
+        danger
+        onClose={() => setPendingClosePath(null)}
+        onConfirm={confirmDiscardAndCloseTab}
+      >
+        <code>{pendingClosePath?.split("/").pop()}</code>
+        {" "}
+        has unsaved changes. Closing this tab will discard them.
+      </ConfirmDialog>
+
+      <ConfirmDialog
         open={deleteDialog !== null}
         title="Confirm deletion"
         confirmLabel="Delete"
+        submittingLabel="Deleting..."
         danger
         onClose={() => setDeleteDialog(null)}
         onConfirm={confirmDeletion}

@@ -1,44 +1,22 @@
 "use client";
 
-import {
-  type ReactNode,
-  useEffect,
-  useState
-} from "react";
+import { type ReactNode, useEffect, useState } from "react";
 
 interface ConfirmDialogProps {
   open: boolean;
   title: string;
-
   children: ReactNode;
-
   confirmLabel?: string;
+  submittingLabel?: string;
   danger?: boolean;
 
   onClose: () => void;
-
-  onConfirm:
-    () => Promise<void>;
+  onConfirm: () => Promise<void>;
 }
 
-export function ConfirmDialog({
-  open,
-  title,
-  children,
-  confirmLabel = "Confirm",
-  danger = false,
-  onClose,
-  onConfirm
-}: ConfirmDialogProps) {
-  const [
-    submitting,
-    setSubmitting
-  ] = useState(false);
-
-  const [
-    error,
-    setError
-  ] = useState("");
+export function ConfirmDialog({ open, title, children, confirmLabel = "Confirm", submittingLabel = "Working...", danger = false, onClose, onConfirm }: ConfirmDialogProps) {
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     if (!open) {
@@ -48,31 +26,18 @@ export function ConfirmDialog({
     setSubmitting(false);
     setError("");
 
-    function handleKeyDown(
-      event: KeyboardEvent
-    ) {
-      if (
-        event.key === "Escape"
-      ) {
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
         onClose();
       }
     }
 
-    window.addEventListener(
-      "keydown",
-      handleKeyDown
-    );
+    window.addEventListener("keydown", handleKeyDown);
 
     return () => {
-      window.removeEventListener(
-        "keydown",
-        handleKeyDown
-      );
+      window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [
-    open,
-    onClose
-  ]);
+  }, [open, onClose]);
 
   if (!open) {
     return null;
@@ -88,7 +53,6 @@ export function ConfirmDialog({
 
     try {
       await onConfirm();
-
       onClose();
     } catch (confirmError) {
       setError(
@@ -144,7 +108,7 @@ export function ConfirmDialog({
             disabled={submitting}
             onClick={handleConfirm}
           >
-            {submitting ? "Deleting..." : confirmLabel}
+            {submitting ? submittingLabel : confirmLabel}
           </button>
         </div>
       </div>

@@ -1,12 +1,12 @@
 :root[data-theme="dark"] {
-  --bg-app: #0b0b0c;
-  --bg-panel: #111113;
-  --bg-panel-soft: #171719;
-  --bg-editor: #09090a;
+  --bg-app: #171719;
+  --bg-panel: #1c1c1f;
+  --bg-panel-soft: #28282c;
+  --bg-editor: #000000;
   --bg-elevated: #202024;
-  --bg-pdf: #2b2b2f;
-  --border: #2c2c31;
-  --border-soft: #202024;
+  --bg-pdf: #1c1c1f;
+  --border: #303034;
+  --border-soft: #27272b;
   --text-primary: #f4f4f5;
   --text-secondary: #b9b9c0;
   --text-muted: #777780;
@@ -17,14 +17,14 @@
 }
 
 :root[data-theme="light"] {
-  --bg-app: #f4f4f5;
-  --bg-panel: #ffffff;
-  --bg-panel-soft: #f7f7f8;
+  --bg-app: #eeeeef;
+  --bg-panel: #f0f0f1;
+  --bg-panel-soft: #e3e3e5;
   --bg-editor: #ffffff;
   --bg-elevated: #ffffff;
-  --bg-pdf: #e9e9ec;
-  --border: #d9d9df;
-  --border-soft: #eeeeF0;
+  --bg-pdf: #f0f0f1;
+  --border: #d8d8dc;
+  --border-soft: #e2e2e5;
   --text-primary: #18181b;
   --text-secondary: #52525b;
   --text-muted: #85858d;
@@ -78,7 +78,7 @@ button {
   height: 100dvh;
   max-height: 100dvh;
   overflow: hidden;
-  background: var(--bg-app);
+  background: var(--bg-panel);
   transform-origin: center;
   transition: filter 150ms ease;
 }
@@ -97,58 +97,142 @@ button {
   overflow: hidden;
 }
 
+
+/* ========================================
+   Left sidebar — outermost level
+======================================== */
+
+.workspace-panel-sidebar {
+  position: relative;
+  z-index: 1;
+  background: var(--bg-panel);
+}
+
+.workspace-panel-sidebar
+.sidebar {
+  height: 100%;
+  background: var(--bg-panel);
+}
+
+
+/* ========================================
+   Editor — middle nested surface
+======================================== */
+
+.workspace-panel-editor {
+  position: relative;
+  z-index: 10;
+  height: calc(100% - 16px);
+  margin: 8px 0;
+  overflow: hidden;
+  border-radius: 18px 0 0 18px;
+  background: var(--bg-editor);
+}
+
+.workspace-panel-editor
+.editor-pane {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  max-height: 100%;
+  overflow: hidden;
+  border-radius: inherit;
+  background: var(--bg-editor);
+}
+
+
+/* ========================================
+   Right panel — innermost surface
+======================================== */
+
+.workspace-panel-right {
+  position: relative;
+  z-index: 20;
+  width: auto;
+  max-width: none;
+  min-width: 0;
+  height: calc(100% - 16px);
+  margin: 8px 8px 8px 0;
+  padding: 8px;
+  background: var(--bg-editor);
+  border-radius: 0 18px 18px 0;
+  overflow: hidden;
+}
+
+#preview-tools {
+  min-width: 0 !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+}
+
+.workspace-panel-right
+.tools-panel,
+.workspace-panel-right
+.preview-pane {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  height: 100%;
+  min-height: 0;
+  max-height: 100%;
+  overflow: hidden;
+  border-radius: 16px;
+  background: var(--bg-panel);
+}
+
+.workspace-panel-right
+.tools-panel {
+  min-width: 0;
+  overflow-x: hidden;
+}
+
 .workspace-resize-handle {
   position: relative;
-  width: 5px;
-  min-width: 5px;
+  z-index: 40;
+  width: 6px;
+  min-width: 6px;
   background: transparent;
   cursor: col-resize;
   outline: none;
-  transition: background-color 120ms ease, box-shadow 120ms ease;
-  z-index: 20;
 }
 
-/* Thin resting divider */
-.workspace-resize-handle::after {
+.workspace-resize-handle:hover,
+.workspace-resize-handle:active,
+.workspace-resize-handle:focus-visible {
+  background:transparent;
+  box-shadow:none;
+}
+
+#sidebar-editor-separator {
+  background: var(--bg-panel);
+}
+
+#editor-preview-separator {
+  position: relative;
+  background: transparent;
+}
+
+#editor-preview-separator::before {
   content: "";
   position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 50%;
-  width: 1px;
-  transform: translateX(-50%);
-  background: var(--border);
+  top: 8px;
+  bottom: 8px;
+  left: 0;
+  right: 0;
+  background: var(--bg-editor);
 }
 
-/* Larger visual target while hovering */
-.workspace-resize-handle:hover {
-  background: color-mix(in srgb, var(--accent) 13%, transparent);
+#sidebar-editor-separator:hover,
+#sidebar-editor-separator:active,
+#sidebar-editor-separator:focus-visible {
+  background: var(--bg-panel);
 }
 
-.workspace-resize-handle:hover::after {
-  width: 2px;
-  background: var(--accent);
-}
-
-/* Keyboard accessibility */
-.workspace-resize-handle:focus-visible {
-  background: color-mix(in srgb, var(--accent) 18%, transparent);
-  box-shadow: 0 0 0 1px var(--accent);
-}
-
-.workspace-resize-handle:focus-visible::after {
-  width: 2px;
-  background: var(--accent);
-}
-
-/* While dragging */
-.workspace-resize-handle:active {
-  background: color-mix(in srgb, var(--accent) 22%, transparent);
-}
-
-.workspace-resize-handle:active::after {
-  width: 2px;
-  background: var(--accent);
+#editor-preview-separator:hover,
+#editor-preview-separator:active,
+#editor-preview-separator:focus-visible {
+  background: transparent;
+  box-shadow: none;
 }
 
 .sidebar,
@@ -300,14 +384,12 @@ button {
 .editor-pane {
   display: flex;
   flex-direction: column;
-  height: 100dvh;
+  width: 100%;
+  height: 100%;
   min-height: 0;
+  max-height: 100%;
   overflow: hidden;
   background: var(--bg-editor);
-}
-
-.editor-header {
-  flex: 0 0 46px;
 }
 
 .editor-header,
@@ -322,69 +404,406 @@ button {
   background: var(--bg-panel);
 }
 
+/* ========================================
+   Editor header
+======================================== */
+
+.editor-header {
+  flex: 0 0 64px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  min-height: 64px;
+  padding: 0 16px;
+  border-bottom: 0;
+  background: var(--bg-editor);
+}
+
+
+/* ========================================
+   Multi-file editor tabs
+======================================== */
+
 .editor-tabs {
   display: flex;
   align-items: center;
+  gap: 5px;
+  flex: 1 1 auto;
   min-width: 0;
+  height: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
 }
 
-.tab {
-  max-width: 260px;
+.editor-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.editor-tab {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  min-width: 125px;
+  max-width: 230px;
+  height: 42px;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  padding: 7px 12px;
-  border-radius: 10px;
+  border: 1px solid transparent;
+  border-radius: 14px;
+  background: transparent;
   color: var(--text-secondary);
 }
 
-.tab.active {
-  color: var(--text-primary);
+.editor-tab:hover {
   background: var(--bg-panel-soft);
+  color: var(--text-primary);
 }
+
+.editor-tab.active {
+  border-color: color-mix(in srgb, var(--text-primary) 72%, transparent);
+  background: var(--bg-panel-soft);
+  color: var(--text-primary);
+  box-shadow: 0 5px 18px rgba(0, 0, 0, 0.22);
+}
+
+.editor-tab-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1 1 auto;
+  min-width: 0;
+  width: 100%;
+  height: 100%;
+  padding: 0 13px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  line-height: 1;
+}
+
+.editor-tab-file-icon {
+  display: block;
+  flex: 0 0 auto;
+  align-self: center;
+  color: var(--text-muted);
+}
+
+.editor-tab.active
+.editor-tab-file-icon {
+  color: var(--text-primary);
+}
+
+.editor-tab-label {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  height: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+  font-weight: 520;
+  line-height: 1;
+}
+
+.editor-tab-dirty {
+  flex: 0 0 auto;
+  color: var(--accent);
+  font-size: 10px;
+  line-height: 1;
+}
+
+
+/* ========================================
+   Tab close button
+======================================== */
+
+.editor-tab-close {
+  position: absolute;
+  top: 50%;
+  right: 7px;
+  z-index: 10;
+  display: grid;
+  place-items: center;
+  width: 25px;
+  height: 25px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 7px;
+  background: var(--bg-panel-soft);
+  color: var(--text-secondary);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-50%);
+  transition: opacity 100ms ease, background-color 100ms ease, color 100ms ease;
+}
+
+.editor-tab:hover
+.editor-tab-close {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.editor-tab-close:hover {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+}
+
+.editor-tab-close:focus-visible {
+  opacity: 1;
+  pointer-events: auto;
+  outline: 1px solid var(--text-secondary);
+  outline-offset: 1px;
+}
+
+
+/* ========================================
+   Editor Tools button
+======================================== */
+
+.editor-tools-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  flex: 0 0 auto;
+  min-width: 102px;
+  min-height: 44px;
+  padding: 0 15px;
+  border: 0;
+  border-radius: 16px;
+  background: #062b68;
+  color: #ffffff;
+  font-size: 15px;
+  font-weight: 560;
+  transition: background-color 120ms ease, transform 120ms ease;
+}
+
+.editor-tools-button:hover {
+  background: #08377f;
+}
+
+.editor-tools-button.is-open {
+  background: #072b68;
+}
+
+.editor-tools-button.is-open:hover {
+  background: #09387f;
+}
+
+.editor-tools-button:active {
+  transform: scale(0.98);
+}
+
+.editor-tools-button svg {
+  flex: 0 0 auto;
+}
+
+/* ========================================
+   CodeMirror editor
+======================================== */
 
 .codemirror-wrap {
   flex: 1 1 0;
-  min-height: 0;
   height: 0;
+  min-height: 0;
   overflow: hidden;
   background: var(--bg-editor);
 }
 
-/* @uiw/react-codemirror wrapper */
-.codemirror-wrap > div {
+
+/* ========================================
+   CodeMirror sizing
+======================================== */
+
+.codemirror-wrap > div,
+.codemirror-wrap
+.cm-theme,
+.codemirror-wrap
+.cm-editor {
+  width: 100%;
   height: 100%;
   min-height: 0;
 }
 
-.codemirror-wrap .cm-theme {
-  height: 100%;
-  min-height: 0;
+.codemirror-wrap
+.cm-editor {
+  background: var(--bg-editor) !important;
 }
 
-.codemirror-wrap .cm-editor {
-  height: 100% !important;
-  min-height: 0;
-}
-
-.codemirror-wrap .cm-scroller {
+.codemirror-wrap
+.cm-scroller {
   height: 100%;
   min-height: 0;
-  overflow-y: auto !important;
   overflow-x: auto !important;
+  overflow-y: auto !important;
   scrollbar-gutter: stable;
+  background: var(--bg-editor) !important;
 }
 
-.codemirror-wrap .cm-content {
+.codemirror-wrap
+.cm-content {
+  padding-left: 0 !important;
   min-height: 100%;
+  background: var(--bg-editor) !important;
+}
+
+
+/* ========================================
+   CodeMirror gutter
+======================================== */
+
+.codemirror-wrap
+.cm-gutters,
+.codemirror-wrap
+.cm-gutter {
+  background: var(--bg-editor) !important;
+}
+
+.codemirror-wrap
+.cm-gutters {
+  border-right: 1px solid var(--border-soft);
+}
+
+.codemirror-wrap
+.cm-lineNumbers {
+  min-width: 44px;
+}
+
+.codemirror-wrap
+.cm-lineNumbers
+.cm-gutterElement {
+  min-width: 44px;
+  padding: 0 12px 0 8px;
+  text-align: right;
+  font-weight: 500;
+}
+
+
+/* ========================================
+   Dark-theme gutter
+======================================== */
+
+:root[data-theme="dark"]
+.codemirror-wrap
+.cm-gutters {
+  border-right-color: rgba(255, 255, 255, 0.06);
+}
+
+:root[data-theme="dark"]
+.codemirror-wrap
+.cm-lineNumbers
+.cm-gutterElement {
+  color: #7f8ba0;
+}
+
+:root[data-theme="dark"]
+.codemirror-wrap
+.cm-activeLine {
+  background: rgba(80, 120, 200, 0.08) !important;
+}
+
+:root[data-theme="dark"]
+.codemirror-wrap
+.cm-activeLineGutter {
+  background: rgba(80, 120, 200, 0.14) !important;
+  color: #f4f7fb !important;
+  font-weight: 600;
+}
+
+
+/* ========================================
+   Light-theme gutter
+======================================== */
+
+:root[data-theme="light"]
+.codemirror-wrap
+.cm-gutters {
+  border-right-color: rgba(20, 20, 20, 0.08);
+}
+
+:root[data-theme="light"]
+.codemirror-wrap
+.cm-lineNumbers
+.cm-gutterElement {
+  color: #8190a5;
+}
+
+:root[data-theme="light"]
+.codemirror-wrap
+.cm-activeLine {
+  background: #f5f5f6 !important;
+}
+
+:root[data-theme="light"]
+.codemirror-wrap
+.cm-activeLineGutter {
+  background: #ececef !important;
+  color: #3f3f46 !important;
+  font-weight: 600;
+}
+
+
+/* ========================================
+   Code folding gutter
+======================================== */
+
+.codemirror-wrap
+.cm-foldGutter
+.cm-gutterElement {
+  padding: 0 6px;
+  color: var(--text-muted);
+  cursor: pointer;
+  width: 18px;
+  min-width: 18px;
+  padding: 0 2px;
+}
+
+.codemirror-wrap
+.cm-foldGutter
+.cm-gutterElement:hover {
+  color: var(--text-primary);
+}
+
+.codemirror-wrap
+.cm-foldGutter {
+  width: 18px;
+  min-width: 18px;
+}
+
+
+/* ========================================
+   Indentation guides
+======================================== */
+
+:root[data-theme="dark"]
+.codemirror-wrap
+.cm-indentation-marker {
+  border-left: 1px solid rgba(120, 170, 255, 0.1);
+}
+
+:root[data-theme="light"]
+.codemirror-wrap
+.cm-indentation-marker {
+  border-left: 1px solid rgba(80, 120, 180, 0.1);
+}
+
+.codemirror-wrap
+.cm-line {
+  padding-left: 2px !important;
 }
 
 .preview-pane {
   display: flex;
   flex-direction: column;
-  height: 100dvh;
-  max-height: 100dvh;
+  width: 100%;
+  height: 100%;
   min-height: 0;
+  max-height: 100%;
   overflow: hidden;
   background: var(--bg-pdf);
 }
@@ -443,13 +862,24 @@ button {
 }
 
 .tools-body {
-  flex: 1;
-  overflow: auto;
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 0;
+  max-width: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
   padding: 16px;
 }
 
 .logs {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  margin: 0;
   white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
   font-family: "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
   font-size: 13px;
   color: var(--text-secondary);
@@ -1757,7 +2187,5 @@ body > .settings-select-menu-portal {
   position: fixed;
   inset: 0;
   overflow: hidden;
-  background: rgba(7, 7, 9, 0.54);
-  backdrop-filter: blur(28px) brightness(0.58) saturate(0.72);
-  -webkit-backdrop-filter: blur(28px) brightness(0.58) saturate(0.72);
+  background: transparent;
 }
