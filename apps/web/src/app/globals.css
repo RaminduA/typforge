@@ -14,6 +14,15 @@
   --danger: #ff5c5c;
   --warning: #e6b450;
   --shadow: rgba(0, 0, 0, 0.4);
+  --app-tooltip-bg: #29292d;
+  --app-tooltip-text: #f4f4f5;
+  --app-tooltip-border: #45454a;
+  --app-tooltip-shadow: 0 10px 30px rgba(0, 0, 0, 0.42);
+  --app-floating-bg: #202024;
+  --app-floating-text: #f5f5f6;
+  --app-floating-border: #37373c;
+  --app-floating-hover: rgba(255, 255, 255, 0.1);
+  --app-floating-shadow: 0 12px 34px rgba(0, 0, 0, 0.42);
 }
 
 :root[data-theme="light"] {
@@ -32,6 +41,15 @@
   --danger: #c24141;
   --warning: #9a6a16;
   --shadow: rgba(0, 0, 0, 0.12);
+  --app-tooltip-bg: #ffffff;
+  --app-tooltip-text: #18181b;
+  --app-tooltip-border: #d8d8dc;
+  --app-tooltip-shadow: 0 10px 30px rgba(0, 0, 0, 0.16);
+  --app-floating-bg: #ffffff;
+  --app-floating-text: #18181b;
+  --app-floating-border: #d7d7dc;
+  --app-floating-hover: rgba(0, 0, 0, 0.07);
+  --app-floating-shadow: 0 12px 34px rgba(0, 0, 0, 0.18);
 }
 
 * {
@@ -420,6 +438,9 @@ button {
   background: var(--bg-editor);
 }
 
+.editor-header.is-empty {
+  justify-content: flex-end;
+}
 
 /* ========================================
    Multi-file editor tabs
@@ -755,7 +776,6 @@ button {
 .codemirror-wrap
 .cm-foldGutter
 .cm-gutterElement {
-  padding: 0 6px;
   color: var(--text-muted);
   cursor: pointer;
   width: 18px;
@@ -802,50 +822,598 @@ button {
   flex-direction: column;
   width: 100%;
   height: 100%;
+  min-width: 0;
   min-height: 0;
   max-height: 100%;
   overflow: hidden;
-  background: var(--bg-pdf);
+  background: var(--bg-panel);
 }
 
-.preview-toolbar {
-  flex: 0 0 46px;
-  min-height: 46px;
-  max-height: 46px;
-}
-
-.toolbar-left,
-.toolbar-right {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.pdf-frame-wrap {
-  flex: 1 1 0;
-  min-height: 0;
-  height: 0;
-  overflow: hidden;
-  padding: 24px;
-}
-
-.pdf-frame {
-  display: block;
-  width: 100%;
-  height: 100%;
-  min-height: 0;
-  border: 0;
-  border-radius: 8px;
-  background: white;
-  box-shadow: 0 20px 60px var(--shadow);
-}
-
-.empty-preview {
+.pdf-viewer-module-loading {
   display: grid;
   place-items: center;
+  width: 100%;
   height: 100%;
+  background: var(--bg-panel);
   color: var(--text-muted);
+  font-size: 14px;
+}
+
+.pdf-viewer {
+  --pdf-toolbar-bg: #ffffff;
+  --pdf-toolbar-text: #171719;
+  --pdf-toolbar-muted: #7b7b81;
+  --pdf-toolbar-border: #dedee1;
+  --pdf-workspace-bg: #f3f3f4;
+  --pdf-page-gap: #e1e1e3;
+  --pdf-menu-bg: #ffffff;
+  --pdf-menu-hover: #eeeeef;
+  --pdf-control-bg: #ffffff;
+  --pdf-control-hover: #f0f0f1;
+  --pdf-control-border: #d7d7da;
+  --pdf-page-shadow: rgba(0, 0, 0, 0.16);
+  --pdf-floating-bg: #1d1d1f;
+  --pdf-floating-text: #f5f5f6;
+
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  border-radius: inherit;
+  background: var(--pdf-workspace-bg);
+  color: var(--pdf-toolbar-text);
+}
+
+.pdf-viewer[data-pdf-theme="dark"] {
+  --pdf-toolbar-bg: #1d1d1f;
+  --pdf-toolbar-text: #f4f4f5;
+  --pdf-toolbar-muted: #9a9aa1;
+  --pdf-toolbar-border: #343438;
+  --pdf-workspace-bg: #000000;
+  --pdf-page-gap: #28282b;
+  --pdf-menu-bg: #252527;
+  --pdf-menu-hover: #353539;
+  --pdf-control-bg: #242426;
+  --pdf-control-hover: #303034;
+  --pdf-control-border: #414146;
+  --pdf-page-shadow: rgba(0, 0, 0, 0.6);
+  --pdf-floating-bg: #202022;
+  --pdf-floating-text: #f5f5f6;
+}
+
+/* ========================================
+   PDF viewer toolbar
+======================================== */
+
+.pdf-viewer-toolbar {
+  position: relative;
+  z-index: 30;
+  display: grid;
+  grid-template-columns: minmax(140px, 1fr) auto auto;
+  align-items: center;
+  gap: 16px;
+  flex: 0 0 58px;
+  min-width: 0;
+  height: 58px;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--pdf-toolbar-border);
+  background: var(--pdf-toolbar-bg);
+  color: var(--pdf-toolbar-text);
+}
+
+.pdf-status-menu-wrap,
+.pdf-zoom-menu-wrap,
+.pdf-more-menu-wrap {
+  position: relative;
+  min-width: 0;
+}
+
+.pdf-status-menu-wrap {
+  justify-self: start;
+}
+
+.pdf-status-control {
+  display: inline-flex;
+  align-items: stretch;
+  max-width: 220px;
+  min-height: 42px;
+  overflow: hidden;
+  border: 1px solid var(--pdf-control-border);
+  border-radius: 999px;
+  background: var(--pdf-control-bg);
+  color: var(--pdf-toolbar-text);
+}
+
+.pdf-status-control.is-failed {
+  border-color: color-mix(in srgb, #e5484d 48%, var(--pdf-control-border));
+  color: #e5484d;
+}
+
+.pdf-status-main,
+.pdf-status-chevron {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  background: transparent;
+  color: inherit;
+}
+
+.pdf-status-main {
+  gap: 9px;
+  min-width: 0;
+  padding: 0 13px 0 15px;
+  font-size: 14px;
+  font-weight: 560;
+  white-space: nowrap;
+}
+
+.pdf-status-main span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pdf-status-main:hover:not(:disabled),
+.pdf-status-chevron:hover:not(:disabled) {
+  background: var(--pdf-control-hover);
+}
+
+.pdf-status-main:disabled {
+  cursor: default;
+}
+
+.pdf-status-chevron {
+  width: 38px;
+  border-left: 1px solid var(--pdf-control-border);
+}
+
+.pdf-status-spinner {
+  animation: pdf-spin 900ms linear infinite;
+}
+
+@keyframes pdf-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.pdf-viewer-toolbar-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 22px;
+  min-width: 0;
+}
+
+.pdf-page-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--pdf-toolbar-muted);
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+.pdf-page-current-input {
+  width: 3ch;
+  min-width: 24px;
+  padding: 10px 0 10px;
+  border: 0;
+  border-bottom: 1px solid var(--pdf-toolbar-text);
+  outline: none;
+  background: transparent;
+  color: var(--pdf-toolbar-text);
+  font: inherit;
+  font-weight: 600;
+  line-height: 1;
   text-align: center;
+  caret-color: var(--pdf-toolbar-text);
+}
+
+.pdf-page-current-input:focus {
+  border-bottom-width: 2px;
+  padding-bottom: 9px;
+}
+
+.pdf-page-current-input:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.pdf-page-current-input::selection {
+  background: color-mix(
+    in srgb,
+    var(--pdf-toolbar-text) 18%,
+    transparent
+  );
+}
+
+.pdf-page-of {
+  color: var(--pdf-toolbar-muted);
+}
+
+.pdf-zoom-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 38px;
+  padding: 0 6px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--pdf-toolbar-text);
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+.pdf-zoom-trigger:hover {
+  background: var(--pdf-control-hover);
+}
+
+.pdf-zoom-trigger svg:last-child {
+  transition: transform 120ms ease;
+}
+
+.pdf-zoom-trigger svg:last-child.is-open {
+  transform: rotate(180deg);
+}
+
+.pdf-viewer-toolbar-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 3px;
+}
+
+.pdf-toolbar-icon-button {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--pdf-toolbar-text);
+  text-decoration: none;
+}
+
+.pdf-toolbar-icon-button:hover:not(:disabled) {
+  background: var(--pdf-control-hover);
+}
+
+.pdf-toolbar-icon-button:disabled {
+  cursor: default;
+  color: var(--pdf-toolbar-muted);
+  opacity: 0.5;
+}
+
+/* ========================================
+   PDF menus
+======================================== */
+
+.pdf-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  z-index: 100;
+  min-width: 220px;
+  padding: 7px;
+  border: 1px solid var(--pdf-control-border);
+  border-radius: 16px;
+  background: var(--pdf-menu-bg);
+  color: var(--pdf-toolbar-text);
+  box-shadow: 0 18px 55px rgba(0, 0, 0, 0.24);
+  animation: pdf-menu-enter 110ms ease-out;
+}
+
+.pdf-status-menu {
+  left: 0;
+}
+
+.pdf-zoom-menu {
+  right: 0;
+  width: 285px;
+  padding: 8px 5px;
+}
+
+.pdf-more-menu {
+  right: 0;
+  width: 245px;
+}
+
+.pdf-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 40px;
+  padding: 0 11px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  font-size: 14px;
+}
+
+.pdf-menu-item:hover:not(:disabled),
+.pdf-menu-item.is-selected {
+  background: var(--pdf-menu-hover);
+}
+
+.pdf-menu-item:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.pdf-zoom-menu-item {
+  justify-content: space-between;
+  min-height: 45px;
+  font-size: 15px;
+}
+
+.pdf-menu-shortcut {
+  margin-left: auto;
+  color: var(--pdf-toolbar-muted);
+}
+
+.pdf-menu-separator {
+  height: 1px;
+  margin: 5px 6px;
+  background: var(--pdf-toolbar-border);
+}
+
+@keyframes pdf-menu-enter {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.985);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* ========================================
+   Viewer viewport and rendered pages
+======================================== */
+
+.pdf-viewer-viewport {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  padding: 8px 12px 28px;
+  background: var(--pdf-workspace-bg);
+  scrollbar-color: var(--pdf-toolbar-muted) transparent;
+  scrollbar-width: thin;
+}
+
+.pdf-viewer-viewport::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.pdf-viewer-viewport::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.pdf-viewer-viewport::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background: var(--pdf-toolbar-muted);
+  background-clip: padding-box;
+}
+
+.pdf-document {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  width: max-content;
+  min-width: 100%;
+  margin: 0 auto;
+}
+
+.pdf-page-shell {
+  flex: 0 0 auto;
+  line-height: 0;
+}
+
+.pdf-rendered-page {
+  overflow: hidden;
+  background: #ffffff;
+  box-shadow: 0 3px 18px var(--pdf-page-shadow);
+}
+
+.pdf-rendered-page .react-pdf__Page__canvas {
+  display: block !important;
+  max-width: none !important;
+}
+
+.pdf-viewer[data-pdf-theme="dark"]
+.pdf-rendered-page {
+  background: #000000;
+}
+
+.pdf-viewer[data-pdf-theme="dark"]
+.pdf-rendered-page
+.react-pdf__Page__canvas {
+  filter: invert(1) hue-rotate(180deg);
+}
+
+.pdf-viewer-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 260px;
+  color: var(--pdf-toolbar-muted);
+  text-align: center;
+  font-size: 14px;
+}
+
+.pdf-viewer-state.is-error {
+  color: #e5484d;
+}
+
+.pdf-empty-mark {
+  display: grid;
+  place-items: center;
+  width: 58px;
+  height: 58px;
+  border: 1px solid var(--pdf-control-border);
+  border-radius: 16px;
+  color: var(--pdf-toolbar-text);
+  font-size: 16px;
+  font-weight: 650;
+}
+
+.pdf-loading-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: color-mix(in srgb, var(--pdf-workspace-bg) 10%, transparent);
+}
+
+/* ========================================
+   Floating PDF navigation control
+======================================== */
+
+.pdf-floating-navigation {
+  position: absolute;
+  left: 50%;
+  bottom: 14px;
+  z-index: 25;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-height: 50px;
+  padding: 6px 10px;
+  border: 1px solid var(--app-floating-border);
+  border-radius: 999px;
+  background: var(--app-floating-bg);
+  color: var(--app-floating-text);
+  box-shadow: var(--app-floating-shadow);
+  transform: translateX(-50%);
+}
+
+.pdf-floating-navigation button {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: inherit;
+}
+
+.pdf-floating-navigation
+button:hover:not(:disabled) {
+  background: var(--app-floating-hover);
+}
+
+.pdf-floating-navigation
+button:disabled {
+  cursor: default;
+  opacity: 0.38;
+}
+
+.pdf-floating-tooltip-wrap,
+.pdf-source-sync-placeholder {
+  display: inline-flex;
+}
+
+/* ========================================
+   Shared PDF tooltip
+======================================== */
+
+.pdf-tooltip-button {
+  position: relative;
+}
+
+.pdf-tooltip-button::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 140;
+  width: max-content;
+  max-width: 230px;
+  padding: 7px 9px;
+  border: 1px solid var(--app-tooltip-border);
+  border-radius: 6px;
+  background: var(--app-tooltip-bg);
+  color: var(--app-tooltip-text);
+  box-shadow: var(--app-tooltip-shadow);
+  font-size: 12px;
+  font-weight: 560;
+  line-height: 1.25;
+  white-space: normal;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-2px);
+  transition: opacity 100ms ease, transform 100ms ease;
+}
+
+.pdf-tooltip-button:hover::after,
+.pdf-tooltip-button:focus-visible::after {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.pdf-tooltip-button.pdf-tooltip-above::after {
+  top: auto;
+  right: auto;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translate(-50%, 2px);
+}
+
+.pdf-tooltip-button.pdf-tooltip-above:hover::after,
+.pdf-tooltip-button.pdf-tooltip-above:focus-visible::after {
+  transform: translate(-50%, 0);
+}
+
+/* ========================================
+   Narrow right-pane behavior
+======================================== */
+
+@media (max-width: 920px) {
+  .pdf-viewer-toolbar {
+    gap: 8px;
+    padding: 0 8px;
+  }
+
+  .pdf-viewer-toolbar-center {
+    gap: 10px;
+  }
+
+  .pdf-status-main {
+    padding-left: 11px;
+    padding-right: 9px;
+  }
+
+  .pdf-status-main span {
+    max-width: 88px;
+  }
+
+  .pdf-zoom-trigger {
+    gap: 6px;
+  }
 }
 
 .tools-panel {
@@ -2188,4 +2756,23 @@ body > .settings-select-menu-portal {
   inset: 0;
   overflow: hidden;
   background: transparent;
+}
+
+/* ========================================
+   Sidebar popup stacking
+======================================== */
+
+#file-sidebar {
+  position: relative;
+  z-index: 100 !important;
+  overflow: visible !important;
+}
+
+.workspace-panel-sidebar {
+  z-index: 100;
+  overflow: visible;
+}
+
+.popup-menu {
+  z-index: 5000;
 }

@@ -1,3 +1,9 @@
+export type CompileStatus =
+  | "idle"
+  | "compiling"
+  | "compiled"
+  | "failed";
+
 export interface Diagnostic {
   file?: string;
   line?: number;

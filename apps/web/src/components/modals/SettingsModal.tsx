@@ -10,24 +10,24 @@ import {
   Share2,
   X
 } from "lucide-react";
-
 import { type FormEvent, useEffect, useState } from "react";
-
 import { SettingsSelect, type SettingsSelectOption } from "@/components/ui/SettingsSelect";
-
 import { SettingsToggle } from "@/components/ui/SettingsToggle";
-
 import { ThemeSelect } from "@/components/ui/ThemeSelect";
 
 import type { EditorFontSize, EditorLanguage, EditorSettings } from "@/lib/editor-settings";
-
+import type { PdfViewerSettings } from "@/lib/pdf-viewer-settings";
 import type { ThemePreference } from "@/lib/theme";
+
+type SettingsSection = "editor" | "pdf-viewer";
 
 interface SettingsModalProps {
   theme: ThemePreference;
   editorSettings: EditorSettings;
+  pdfViewerSettings: PdfViewerSettings;
   onChangeTheme: (theme: ThemePreference) => void;
   onChangeEditorSettings: (settings: EditorSettings) => void;
+  onChangePdfViewerSettings: (settings: PdfViewerSettings) => void;
   onClose: () => void;
 }
 
@@ -57,10 +57,13 @@ const fontSizeOptions: ReadonlyArray<SettingsSelectOption<EditorFontSize>> = [
 export function SettingsModal({
   theme,
   editorSettings,
+  pdfViewerSettings,
   onChangeTheme,
   onChangeEditorSettings,
+  onChangePdfViewerSettings,
   onClose
 }: SettingsModalProps) {
+  const [activeSection, setActiveSection] = useState<SettingsSection>("editor");
   const [dictionaryWord, setDictionaryWord] = useState("");
 
   useEffect(() => {function handleKeyDown(event: KeyboardEvent) {
@@ -77,10 +80,11 @@ export function SettingsModal({
   }, [onClose]);
 
   function updateSetting<K extends keyof EditorSettings>(key: K, value: EditorSettings[K]) {
-    onChangeEditorSettings({
-      ...editorSettings,
-      [key]: value
-    });
+    onChangeEditorSettings({...editorSettings,[key]: value});
+  }
+
+  function updatePdfViewerSetting<K extends keyof PdfViewerSettings>(key: K, value: PdfViewerSettings[K]) {
+    onChangePdfViewerSettings({...pdfViewerSettings, [key]: value});
   }
 
   function handleDictionarySubmit(event: FormEvent<HTMLFormElement>) {
@@ -120,12 +124,20 @@ export function SettingsModal({
         onPointerDown={(event) => event.stopPropagation()}  
       >
         <aside className="settings-navigation">
-          <button type="button" className="settings-navigation-item active">
+          <button
+            type="button"
+            className={`settings-navigation-item ${activeSection === "editor" ? "active" : ""}`}
+            onClick={() => setActiveSection("editor")}
+          >
             <Code2 size={17} />
             <span>Editor</span>
           </button>
 
-          <button type="button" className="settings-navigation-item" disabled>
+          <button
+            type="button"
+            className={`settings-navigation-item ${activeSection === "pdf-viewer" ? "active" : ""}`}
+            onClick={() => setActiveSection("pdf-viewer")}
+          >
             <FileText size={17} />
             <span>PDF Viewer</span>
           </button>
@@ -163,11 +175,14 @@ export function SettingsModal({
 
         <main className="settings-content">
           <header className="settings-content-header">
-            <h2 id="settings-title">Editor</h2>
+            <h2 id="settings-title">
+              {activeSection === "editor" ? "Editor" : "PDF Viewer"}
+            </h2>
           </header>
 
-          <div className="settings-options">
-            <div className="settings-option-row">
+          {activeSection === "editor" ? (
+            <div className="settings-options">
+              <div className="settings-option-row">
               <div className="settings-option-copy">
                 <h3>
                   Interface Theme
@@ -377,6 +392,44 @@ export function SettingsModal({
               </form>
             </div>
           </div>
+          ) : (
+            <div className="settings-options">
+              <div className="settings-option-row">
+                <div className="settings-option-copy">
+                  <h3>PDF Dark Mode</h3>
+
+                  <p>
+                    Enable “Dark Mode” for the PDF viewer by inverting the
+                    rendered document colors. This setting affects only the PDF
+                    viewer; the Tools pane continues to follow the app theme.
+                  </p>
+                </div>
+
+                <SettingsToggle
+                  label="PDF Dark Mode"
+                  checked={pdfViewerSettings.darkMode}
+                  onChange={(checked) => updatePdfViewerSetting("darkMode", checked)}
+                />
+              </div>
+
+              <div className="settings-option-row">
+                <div className="settings-option-copy">
+                  <h3>PDF Zoom Shortcuts</h3>
+
+                  <p>
+                    Override the browser’s zoom shortcuts (Cmd/Ctrl +/−/0) to
+                    zoom the PDF viewer instead.
+                  </p>
+                </div>
+
+                <SettingsToggle
+                  label="PDF Zoom Shortcuts"
+                  checked={pdfViewerSettings.zoomShortcuts}
+                  onChange={(checked) => updatePdfViewerSetting("zoomShortcuts", checked)}
+                />
+              </div>
+            </div>
+          )}
         </main>
       </section>
     </div>

@@ -12,8 +12,19 @@ import { SettingsModal } from "@/components/modals/SettingsModal";
 import { UploadZipModal } from "@/components/modals/UploadZipModal";
 import { api } from "@/lib/api";
 import { findFirstTypFile, isSameOrChildPath, joinProjectPath } from "@/lib/file-tree";
-import { applyTheme, type ThemePreference } from "@/lib/theme";
-import type { CompileResult } from "@/types/build";
+import {
+  applyTheme,
+  loadThemePreference,
+  saveThemePreference,
+  type ThemePreference
+} from "@/lib/theme";
+import {
+  DEFAULT_PDF_VIEWER_SETTINGS,
+  loadPdfViewerSettings,
+  savePdfViewerSettings,
+  type PdfViewerSettings
+} from "@/lib/pdf-viewer-settings";
+import type { CompileResult, CompileStatus } from "@/types/build";
 import type { FileNode, Project, VersionSnapshot } from "@/types/project";
 import { EditorPane } from "./EditorPane";
 import { LeftSidebar } from "./LeftSidebar";
@@ -35,7 +46,23 @@ import {
   saveEditorSettings,
   type EditorSettings
 } from "@/lib/editor-settings";
+import {
+  clearEditorSession,
+  loadEditorSession,
+  saveEditorSession
+} from "@/lib/editor-session";
 import type { OpenEditorFile } from "@/types/editor";
+
+interface CompiledPdfVersion {
+  buildId: string;
+  pdfUrl: string;
+  downloadUrl?: string;
+}
+
+interface CompiledPdfHistory {
+  entries: CompiledPdfVersion[];
+  index: number;
+}
 
 export function TypforgeShell() {
   type TextDialogState = 
@@ -55,8 +82,7 @@ export function TypforgeShell() {
   const [tree, setTree] = useState<FileNode>();
   const [openFiles, setOpenFiles] = useState<OpenEditorFile[]>([]);
   const [activePath, setActivePath] = useState<string>();
-  const [pdfPath, setPdfPath] = useState<string>();
-  const [downloadPath, setDownloadPath] = useState<string>();
+  const [pdfHistory, setPdfHistory] = useState<CompiledPdfHistory>({entries: [],index: -1});
   const [logs, setLogs] = useState("");
   const [versions, setVersions] = useState<VersionSnapshot[]>([]);
   const [toolsOpen, setToolsOpen] = useState(false);
@@ -65,13 +91,15 @@ export function TypforgeShell() {
   const [uploadOpen, setUploadOpen] = useState(false);
   const [theme, setTheme] = useState<ThemePreference>("system");
   const [compiling, setCompiling] = useState(false);
+  const [compileStatus, setCompileStatus] = useState<CompileStatus>("idle");
   const [layoutReady, setLayoutReady] = useState(false);
+  const [editorSessionReady, setEditorSessionReady] = useState(false);
   const [textDialog, setTextDialog] = useState<TextDialogState | null>(null);
   const [deleteDialog, setDeleteDialog] = useState<DeleteDialogState | null>(null);
   const [messageDialog, setMessageDialog] = useState<MessageState | null>(null);
   const [pendingClosePath, setPendingClosePath] = useState<string | null>(null);
   const [editorSettings, setEditorSettings] = useState<EditorSettings>(DEFAULT_EDITOR_SETTINGS);
-  const [pdfRevision, setPdfRevision] = useState(0);
+  const [pdfViewerSettings, setPdfViewerSettings] = useState<PdfViewerSettings>(DEFAULT_PDF_VIEWER_SETTINGS);
   const compileInFlightRef = useRef(false);
 
   const fullScreenModalOpen =
@@ -82,25 +110,21 @@ export function TypforgeShell() {
     messageDialog !== null ||
     pendingClosePath !== null;
 
-  const {defaultLayout, onLayoutChanged} = useDefaultLayout({
-    id: "typforge-workspace-layout-v1",
-    storage: panelLayoutStorage
-  });
+  const {defaultLayout, onLayoutChanged} = useDefaultLayout({id: "typforge-workspace-layout-v1",storage: panelLayoutStorage});
 
-  const pdfUrl = useMemo(() => {
-    if (!pdfPath) return undefined;
-    return `${api.absoluteUrl(pdfPath)}?revision=${pdfRevision}`;
-  },[pdfPath,pdfRevision]);
+  const selectedPdfVersion = pdfHistory.index >= 0 ? pdfHistory.entries[pdfHistory.index] : undefined;
 
-  const downloadUrl = useMemo(() => {
-    if (!downloadPath) return undefined;
-    return api.absoluteUrl(downloadPath);
-  }, [downloadPath]);
+  const pdfUrl = selectedPdfVersion?.pdfUrl;
+  const downloadUrl = selectedPdfVersion?.downloadUrl;
+
+  const canShowPreviousCompile = pdfHistory.index > 0;
+  const canShowNextCompile = pdfHistory.index >= 0 && pdfHistory.index < pdfHistory.entries.length - 1;
 
   const activeFile = useMemo(() => openFiles.find((file) => file.path === activePath),[openFiles, activePath]);
   const content = activeFile?.content ?? "";
   const editorDirty = Boolean(activeFile && activeFile.content !== activeFile.savedContent);
   const hasDirtyFiles = useMemo(() => openFiles.some((file) => file.content !== file.savedContent),[openFiles]);
+  const openPathSignature = useMemo(() => openFiles.map((file) => file.path).join("\n"), [openFiles]);
 
   useEffect(() => {
     applyTheme(theme);
@@ -120,7 +144,9 @@ export function TypforgeShell() {
   }, [theme]);
 
   useEffect(() => {
+    setTheme(loadThemePreference());
     setEditorSettings(loadEditorSettings());
+    setPdfViewerSettings(loadPdfViewerSettings());
     setLayoutReady(true);
   }, []);
 
@@ -128,8 +154,35 @@ export function TypforgeShell() {
     if (!layoutReady) {
       return;
     }
+
+    saveThemePreference(theme);
+  }, [layoutReady, theme]);
+
+  useEffect(() => {
+    if (!layoutReady) {
+      return;
+    }
+
     saveEditorSettings(editorSettings);
-  }, [editorSettings,layoutReady]);
+  }, [editorSettings, layoutReady]);
+
+  useEffect(() => {
+    if (!layoutReady) {
+      return;
+    }
+
+    savePdfViewerSettings(pdfViewerSettings);
+  }, [layoutReady, pdfViewerSettings]);
+
+  useEffect(() => {
+    if (!editorSessionReady || !project) {
+      return;
+    }
+
+    const openPaths = openFiles.map((file) => file.path);
+
+    saveEditorSession(project.id, {openPaths,activePath: activePath && openPaths.includes(activePath) ? activePath : undefined});
+  }, [activePath,editorSessionReady,openPathSignature,project]);
 
   useEffect(() => {void bootstrap();}, []);
 
@@ -148,6 +201,98 @@ export function TypforgeShell() {
     };
   }, [hasDirtyFiles]);
 
+  useEffect(() => {
+    function handleEditorPinch(event: WheelEvent) {
+      if (!(event.ctrlKey || event.metaKey) || event.altKey) {
+        return;
+      }
+
+      const target = event.target;
+
+      if (!(target instanceof Element)) {
+        return;
+      }
+
+      const editor = target.closest(".codemirror-wrap");
+
+      if (!editor) {
+        return;
+      }
+
+      const scroller = editor.querySelector<HTMLElement>(".cm-scroller");
+
+      if (!scroller) {
+        return;
+      }
+
+      event.preventDefault();
+      event.stopPropagation();
+
+      scroller.scrollBy({top: event.deltaY * 1.8, left: event.deltaX * 1.35, behavior: "auto"});
+    }
+
+    window.addEventListener("wheel", handleEditorPinch, {
+      capture: true,
+      passive: false
+    });
+
+    return () => {
+      window.removeEventListener("wheel", handleEditorPinch, true);
+    };
+  }, []);
+
+  async function restoreEditorTabs(
+    projectId: string,
+    loadedTree: FileNode
+  ) {
+    const session = loadEditorSession(projectId);
+
+    /*
+     * No saved record means this is the first visit for this
+     * project, so preserve the existing first-file behavior.
+     *
+     * A saved record with openPaths: [] is different: it means
+     * the user intentionally closed every tab.
+     */
+    if (session === undefined) {
+      const firstTyp = findFirstTypFile(loadedTree);
+
+      if (firstTyp) {
+        const file = await api.getFile(projectId, firstTyp.path);
+
+        setOpenFiles([{ path: firstTyp.path, content: file.content, savedContent: file.content }]);
+
+        setActivePath(firstTyp.path);
+      } else {
+        setOpenFiles([]);
+        setActivePath(undefined);
+      }
+
+      setEditorSessionReady(true);
+      return;
+    }
+
+    const restoredFiles = (
+      await Promise.all(session.openPaths.map(async (path) => {
+          try {
+            const file = await api.getFile(projectId, path);
+            return {path,content: file.content,savedContent: file.content} satisfies OpenEditorFile;
+          } catch {
+            return null;
+          }
+        })
+      )
+    ).filter((file): file is OpenEditorFile => file !== null);
+
+    const restoredPaths = restoredFiles.map((file) => file.path);
+
+    const restoredActivePath = session.activePath && restoredPaths.includes(session.activePath) ? session.activePath : restoredFiles.at(-1)?.path;
+
+    setOpenFiles(restoredFiles);
+    setActivePath(restoredActivePath);
+    setEditorSessionReady(true);
+  }
+
   async function bootstrap() {
     const existing = await api.listProjects();
     const selected = existing[0] ?? (await api.createProject("Untitled Project"));
@@ -157,10 +302,7 @@ export function TypforgeShell() {
     const loadedTree = await api.getTree(selected.id);
     setTree(loadedTree);
 
-    const firstTyp = findFirstTypFile(loadedTree);
-    if (firstTyp) {
-      await openFile(selected.id, firstTyp.path);
-    }
+    await restoreEditorTabs(selected.id,loadedTree);
 
     await refreshVersions(selected.id);
     await compileProject(selected, false);
@@ -190,17 +332,10 @@ export function TypforgeShell() {
       const alreadyOpen = current.some((openFile) => openFile.path ===path);
 
       if (alreadyOpen) {
-        return current.map((openFile) =>
-            openFile.path === path
-              ? { path, content: file.content, savedContent: file.content }
-              : openFile
-        );
+        return current.map((openFile) => openFile.path === path? { path, content: file.content, savedContent: file.content }: openFile);
       }
 
-      return [
-        ...current,
-        { path, content: file.content, savedContent: file.content }
-      ];
+      return [...current, { path, content: file.content, savedContent: file.content }];
     });
 
     setActivePath(path);
@@ -271,6 +406,7 @@ export function TypforgeShell() {
 
       compileInFlightRef.current = true;
       setCompiling(true);
+      setCompileStatus("compiling");
 
       const fileToSave = saveBeforeCompile ? activeFile : undefined;
 
@@ -289,17 +425,28 @@ export function TypforgeShell() {
           const logResult = await api.getLogs(result.buildId);
           setLogs(logResult.logs);
         } else {
-          setLogs(
-            result.diagnostics?.map((diagnostic) => 
-              `${diagnostic.severity}: ${diagnostic.message}`).join("\n") ?? ""
-          );
+          setLogs(result.diagnostics?.map((diagnostic) => `${diagnostic.severity}: ${diagnostic.message}`).join("\n") ?? "");
         }
 
         if (result.ok) {
-          setPdfPath(result.pdfUrl);
-          setDownloadPath(result.downloadUrl);
-          setPdfRevision((current) => current + 1);
+          setCompileStatus("compiled");
+
+          if (result.pdfUrl) {
+            const revision = Date.now();
+
+            const nextVersion: CompiledPdfVersion = {
+              buildId: result.buildId,
+              pdfUrl: `${api.absoluteUrl(result.pdfUrl)}?revision=${revision}`,
+              downloadUrl: result.downloadUrl ? api.absoluteUrl(result.downloadUrl) : undefined
+            };
+
+            setPdfHistory((current) => {
+              const entries = [...current.entries, nextVersion].slice(-50);
+              return {entries, index: entries.length - 1};
+            });
+          }
         } else {
+          setCompileStatus("failed");
           setToolsOpen(true);
           setActiveTool("logs");
         }
@@ -308,6 +455,7 @@ export function TypforgeShell() {
       } catch (
         error
       ) {
+        setCompileStatus("failed");
         setLogs(error instanceof Error ? error.message : "Compile failed");
         setToolsOpen(true);
         setActiveTool("logs");
@@ -321,9 +469,7 @@ export function TypforgeShell() {
   );
 
   const saveAndCompileCurrent = useCallback(
-    async () => {
-      await compileProject(project, true);
-    },[compileProject, project]
+    async () => {await compileProject(project, true);},[compileProject, project]
   );
 
   useEffect(() => {
@@ -357,29 +503,32 @@ export function TypforgeShell() {
     return () => { window.clearTimeout(timeoutId); };
   }, [editorSettings.realtimeCompilation, editorDirty, project, activePath, content, compiling, saveAndCompileCurrent]);
 
+  function handleShowPreviousCompile() {
+    setPdfHistory((current) => {
+      if (current.index <= 0) {
+        return current;
+      }
+
+      return {...current, index: current.index - 1};
+    });
+
+    setCompileStatus("compiled");
+  }
+
+  function handleShowNextCompile() {
+    setPdfHistory((current) => {
+      if (current.index < 0 || current.index >= current.entries.length - 1) {
+        return current;
+      }
+
+      return {...current, index: current.index + 1};
+    });
+
+    setCompileStatus("compiled");
+  }
+
   async function handleCompile() {
     await saveAndCompileCurrent();
-  }
-
-  async function handleNewFile() {
-    if (!project) return;
-
-    const path = window.prompt("File path", "main.typ");
-    if (!path) return;
-
-    await api.createFile(project.id, path, "");
-    await refreshTree(project.id);
-    await openFile(project.id, path);
-  }
-
-  async function handleNewFolder() {
-    if (!project) return;
-
-    const path = window.prompt("Folder path", "sections");
-    if (!path) return;
-
-    await api.createFolder(project.id, path);
-    await refreshTree(project.id);
   }
 
   async function handleUploadZip(file: File) {
@@ -429,12 +578,7 @@ export function TypforgeShell() {
   async function handleUploadFiles(parentPath: string, files: File[]) {
     if (!project || files.length === 0) return;
 
-    const entries = files.map(
-        (file) => ({
-          file,
-          path: joinProjectPath(parentPath, file.name)
-        })
-      );
+    const entries = files.map((file) => ({file, path: joinProjectPath(parentPath, file.name)}));
 
     try {
       await api.uploadEntries(project.id, entries);
@@ -448,10 +592,7 @@ export function TypforgeShell() {
     if (!project || files.length === 0) return;
 
     const entries = files.map(
-        (file) => ({
-          file,
-          path: joinProjectPath(parentPath, file.webkitRelativePath || file.name)
-        })
+        (file) => ({file, path: joinProjectPath(parentPath, file.webkitRelativePath || file.name)})
       );
 
     try {
@@ -485,18 +626,13 @@ export function TypforgeShell() {
 
   function handleShareProject() {
     setMessageDialog({
-      title:
-        "Share and collaborate",
-
-      message:
-        "Collaboration will become available after authentication and shared projects are implemented."
+      title:"Share and collaborate",
+      message:"Collaboration will become available after authentication and shared projects are implemented."
     });
   }
 
   function handleRenameProject() {
-    setTextDialog({
-      type: "rename-project"
-    });
+    setTextDialog({type: "rename-project"});
   }
 
   async function handleDuplicateProject() {
@@ -575,8 +711,7 @@ export function TypforgeShell() {
         return result.path + suffix;
       }
 
-      setOpenFiles(current => current.map((file) =>
-          isSameOrChildPath(file.path, node.path)
+      setOpenFiles(current => current.map((file) => isSameOrChildPath(file.path, node.path)
             ? { ...file, path: renamedPath(file.path) }
             : file
       ));
@@ -605,6 +740,8 @@ export function TypforgeShell() {
     }
 
     if (deleteDialog.type === "project") {
+      clearEditorSession(project.id);
+
       await api.deleteProject(project.id);
 
       const remaining = await api.listProjects();
@@ -744,8 +881,13 @@ export function TypforgeShell() {
               <PdfPreviewPane
                 pdfUrl={pdfUrl}
                 downloadUrl={downloadUrl}
-                compiling={compiling}
+                compileStatus={compileStatus}
+                settings={pdfViewerSettings}
+                canShowPreviousCompile={canShowPreviousCompile}
+                canShowNextCompile={canShowNextCompile}
                 onCompile={handleCompile}
+                onShowPreviousCompile={handleShowPreviousCompile}
+                onShowNextCompile={handleShowNextCompile}
               />
             )}
           </div>
@@ -756,8 +898,10 @@ export function TypforgeShell() {
         <SettingsModal
           theme={theme}
           editorSettings={editorSettings}
+          pdfViewerSettings={pdfViewerSettings}
           onChangeTheme={setTheme}
           onChangeEditorSettings={setEditorSettings}
+          onChangePdfViewerSettings={setPdfViewerSettings}
           onClose={() => setSettingsOpen(false)}
         />
       ) : null}

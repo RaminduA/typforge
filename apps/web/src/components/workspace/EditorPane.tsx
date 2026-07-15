@@ -108,74 +108,68 @@ export function EditorPane({ openFiles, activePath, content, fontSize, toolsOpen
       ], [fontSize]
     );
 
+  const hasOpenTabs = openFiles.length > 0;
+
   return (
     <main className="editor-pane">
-      <div className="editor-header">
-        <div
-          className="editor-tabs"
-          role="tablist"
-          aria-label="Open files"
-        >
-          {openFiles.length === 0 ? (
-            <div className="editor-empty-tab">
-              No file selected
-            </div>
-          ) : (
-            openFiles.map((file) => {
-                const active = file.path === activePath;
-                const dirty = file.content !== file.savedContent;
+      <div className={hasOpenTabs ? "editor-header" : "editor-header is-empty"}>
+        {hasOpenTabs ? (
+          <div
+            className="editor-tabs"
+            role="tablist"
+            aria-label="Open files"
+          >
+            {openFiles.map((file) => {
+              const active = file.path === activePath;
+              const dirty = file.content !== file.savedContent;
 
-                return (
-                  <div
-                    key={file.path}
-                    className={active ? "editor-tab active" : "editor-tab"}
-                    role="presentation"
-                    title={file.path}
+              return (
+                <div
+                  key={file.path}
+                  className={active ? "editor-tab active" : "editor-tab"}
+                  role="presentation"
+                  title={file.path}
+                >
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={active}
+                    className="editor-tab-main"
+                    onClick={() => onSelectTab(file.path)}
                   >
-                    <button
-                      type="button"
-                      role="tab"
-                      aria-selected={active}
-                      className="editor-tab-main"
-                      onClick={() => onSelectTab(file.path)}
-                    >
-                      <FileText
-                        className="editor-tab-file-icon"
-                        size={15}
-                      />
-                      <span className="editor-tab-label">
-                        {getFileName(file.path)}
+                    <FileText className="editor-tab-file-icon" size={15} />
+                    <span className="editor-tab-label">
+                      {getFileName(file.path)}
+                    </span>
+
+                    {dirty ? (
+                      <span
+                        className="editor-tab-dirty"
+                        aria-label="Unsaved changes"
+                        title="Unsaved changes"
+                      >
+                        ●
                       </span>
+                    ) : null}
+                  </button>
 
-                      {dirty ? (
-                        <span
-                          className="editor-tab-dirty"
-                          aria-label="Unsaved changes"
-                          title="Unsaved changes"
-                        >
-                          ●
-                        </span>
-                      ) : null}
-                    </button>
-
-                    <button
-                      type="button"
-                      className="editor-tab-close"
-                      aria-label={`Close ${getFileName(file.path)}`}
-                      title="Close"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        onCloseTab(file.path);
-                      }}
-                    >
-                      <X size={14} />
-                    </button>
-                  </div>
-                );
-              }
-            )
-          )}
-        </div>
+                  <button
+                    type="button"
+                    className="editor-tab-close"
+                    aria-label={`Close ${getFileName(file.path)}`}
+                    title="Close"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onCloseTab(file.path);
+                    }}
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        ) : null}
 
         <button
           type="button"
@@ -185,26 +179,39 @@ export function EditorPane({ openFiles, activePath, content, fontSize, toolsOpen
           onClick={onOpenTools}
         >
           {toolsOpen ? (
-            <><span className="editor-tools-button-text">Close</span><X size={17}/></>
+            <>
+              <span className="editor-tools-button-text">
+                Close
+              </span>
+
+              <X size={17} />
+            </>
           ) : (
-            <><span className="editor-tools-button-text">Tools</span><LayoutGrid size={17}/></>
+            <>
+              <span className="editor-tools-button-text">
+                Tools
+              </span>
+
+              <LayoutGrid size={17} />
+            </>
           )}
         </button>
       </div>
 
-      <div className="codemirror-wrap">
-        <CodeMirror
-          key={activePath ?? "no-file"}
-          value={content}
-          height="100%"
-          basicSetup={false}
-          editable={Boolean(activePath)}
-          extensions={extensions}
-          theme="dark"
-          placeholder="Open a .typ file to start editing..."
-          onChange={(value) => onChange(value)}
-        />
-      </div>
+      {hasOpenTabs && activePath ? (
+        <div className="codemirror-wrap">
+          <CodeMirror
+            key={activePath}
+            value={content}
+            height="100%"
+            basicSetup={false}
+            editable
+            extensions={extensions}
+            theme="dark"
+            onChange={(value) => onChange(value)}
+          />
+        </div>
+      ) : null}
     </main>
   );
 }
