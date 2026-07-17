@@ -28,6 +28,7 @@ import type {
   ClipboardEvent as ReactClipboardEvent,
   KeyboardEvent as ReactKeyboardEvent
 } from "react";
+import { createPortal } from "react-dom";
 import { Document, Page, pdfjs } from "react-pdf";
 
 import type { PdfViewerSettings } from "@/lib/pdf-viewer-settings";
@@ -40,6 +41,19 @@ pdfjs.GlobalWorkerOptions.workerSrc = new URL(
 
 type ZoomValue = "fit" | number;
 type OpenMenu = "status" | "zoom" | "more" | null;
+type ConcreteOpenMenu = Exclude<OpenMenu, null>;
+
+interface FloatingMenuPosition {
+  top: number;
+  left: number;
+}
+
+interface FloatingTooltipState {
+  text: string;
+  top: number;
+  left: number;
+  placement: "above" | "below";
+}
 
 interface PdfDocumentProxyLike {
   numPages: number;
@@ -68,6 +82,11 @@ interface PdfDocumentViewerProps {
 const PRESET_ZOOMS = [50, 75, 100, 150, 200, 300, 400] as const;
 const MIN_ZOOM = 30;
 const MAX_ZOOM = 800;
+const MENU_WIDTHS: Record<ConcreteOpenMenu, number> = { status: 205, zoom: 220, more: 245 };
+
+function clampNumber(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
+}
 
 function clampZoom(value: number): number {
   return Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, value));
@@ -105,19 +124,12 @@ function ZoomFitIcon({ size = 16 }: { size?: number }) {
   );
 }
 
-export function PdfDocumentViewer({
-  pdfUrl,
-  downloadUrl,
-  compileStatus,
-  settings,
-  canShowPreviousCompile,
-  canShowNextCompile,
-  onCompile,
-  onShowPreviousCompile,
-  onShowNextCompile
-}: PdfDocumentViewerProps) {
+export function PdfDocumentViewer({ pdfUrl, downloadUrl, compileStatus, settings, canShowPreviousCompile, canShowNextCompile, onCompile, onShowPreviousCompile, onShowNextCompile }: PdfDocumentViewerProps) {
   const rootRef = useRef<HTMLElement>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
+  const statusMenuAnchorRef = useRef<HTMLDivElement>(null);
+  const zoomMenuAnchorRef = useRef<HTMLDivElement>(null);
+  const moreMenuAnchorRef = useRef<HTMLDivElement>(null);
   const pageRefs = useRef<Map<number, HTMLDivElement>>(new Map());
   const scrollFrameRef = useRef<number | null>(null);
   const currentPageRef = useRef(1);
@@ -125,11 +137,7 @@ export function PdfDocumentViewer({
   const pendingRestorePageRef = useRef<number | null>(null);
   const pinchFrameRef = useRef<number | null>(null);
   const pinchZoomRef = useRef<number | null>(null);
-  const pendingPinchAnchorRef = useRef<{
-    contentY: number;
-    pointerY: number;
-    ratio: number;
-  } | null>(null);
+  const pendingPinchAnchorRef = useRef<{contentY: number; pointerY: number; ratio: number;} | null>(null);
 
   const [numPages, setNumPages] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
@@ -139,6 +147,8 @@ export function PdfDocumentViewer({
   const [zoom, setZoom] = useState<ZoomValue>("fit");
   const [rotation, setRotation] = useState(0);
   const [openMenu, setOpenMenu] = useState<OpenMenu>(null);
+  const [menuPosition, setMenuPosition] = useState<FloatingMenuPosition>({ top: 0, left: 0 });
+  const [tooltip, setTooltip] = useState<FloatingTooltipState | null>(null);
   const [loading, setLoading] = useState(Boolean(pdfUrl));
   const [loadError, setLoadError] = useState<string>();
 
@@ -149,9 +159,164 @@ export function PdfDocumentViewer({
   const pageWidth = zoom === "fit" ? fitWidth : Math.round((unrotatedBaseWidth * zoom) / 100);
   const zoomLabel = zoom === "fit" ? "Zoom to fit" : `${Math.round(zoom)}%`;
 
+  function getMenuAnchor(menu: ConcreteOpenMenu): HTMLElement | null {
+    if (menu === "status") return statusMenuAnchorRef.current;
+    if (menu === "zoom") return zoomMenuAnchorRef.current;
+    return moreMenuAnchorRef.current;
+  }
+
+  function updateFloatingMenuPosition(menu: ConcreteOpenMenu) {
+    const anchor = getMenuAnchor(menu);
+
+    if (!anchor) return;
+
+    const bounds = anchor.getBoundingClientRect();
+    const menuWidth = MENU_WIDTHS[menu];
+    const left = clampNumber(bounds.right - menuWidth,8,window.innerWidth - menuWidth - 8);
+    const top = Math.min(bounds.bottom + 8, window.innerHeight - 12);
+    setMenuPosition({ top, left });
+  }
+
+  function toggleFloatingMenu(menu: ConcreteOpenMenu) {
+    setTooltip(null);
+
+    setOpenMenu((current) => {
+      if (current === menu) {
+        return null;
+      }
+
+      updateFloatingMenuPosition(menu);
+
+      return menu;
+    });
+  }
+
+  useEffect(() => {pinchZoomRef.current = zoom === "fit" ? fitPercent : zoom;}, [fitPercent, zoom]);
+
   useEffect(() => {
-    pinchZoomRef.current = zoom === "fit" ? fitPercent : zoom;
-  }, [fitPercent, zoom]);
+    if (!openMenu) return;
+
+    updateFloatingMenuPosition(openMenu);
+
+    function handleReposition() {
+      if (openMenu) {
+        updateFloatingMenuPosition(openMenu);
+      }
+    }
+
+    window.addEventListener("resize", handleReposition);
+    window.addEventListener("scroll", handleReposition, true);
+
+    return () => {
+      window.removeEventListener("resize", handleReposition);
+      window.removeEventListener("scroll", handleReposition, true);
+    };
+  }, [openMenu]);
+
+  useEffect(() => {
+    const root = rootRef.current;
+
+    if (!root) {
+      return;
+    }
+
+    const rootElement: HTMLElement = root;
+
+    function showTooltipForElement(element: HTMLElement) {
+      if (openMenu) {
+        setTooltip(null);
+        return;
+      }
+
+      const text = element.dataset.tooltip;
+
+      if (!text) {
+        return;
+      }
+
+      const bounds = element.getBoundingClientRect();
+
+      const estimatedWidth = Math.min(240, Math.max(90, text.length * 7.2));
+
+      const left = clampNumber(bounds.left + bounds.width / 2, estimatedWidth / 2 + 8, window.innerWidth - estimatedWidth / 2 - 8);
+
+      const hasSpaceBelow = bounds.bottom + 42 < window.innerHeight;
+
+      setTooltip({
+        text,
+        left,
+        top: hasSpaceBelow ? bounds.bottom + 8 : bounds.top - 8,
+        placement: hasSpaceBelow ? "below" : "above"
+      });
+    }
+
+    function handlePointerOver(event: PointerEvent) {
+      const target = event.target;
+
+      if (!(target instanceof Element)) {
+        return;
+      }
+
+      const tooltipElement = target.closest<HTMLElement>("[data-tooltip]");
+
+      if (!tooltipElement || !rootElement.contains(tooltipElement) || tooltipElement.closest(".pdf-menu")) {
+        return;
+      }
+
+      showTooltipForElement(tooltipElement);
+    }
+
+    function handlePointerOut(event: PointerEvent) {
+      const target = event.target;
+      const relatedTarget = event.relatedTarget;
+
+      if (!(target instanceof Element)) {
+        return;
+      }
+
+      const tooltipElement = target.closest<HTMLElement>("[data-tooltip]");
+
+      if (!tooltipElement) {
+        return;
+      }
+
+      if (relatedTarget instanceof Node && tooltipElement.contains(relatedTarget)) {
+        return;
+      }
+
+      setTooltip(null);
+    }
+
+    function handleFocusIn(event: FocusEvent) {
+      const target = event.target;
+
+      if (!(target instanceof Element)) {
+        return;
+      }
+
+      const tooltipElement = target.closest<HTMLElement>("[data-tooltip]");
+
+      if (tooltipElement && rootElement.contains(tooltipElement)) {
+        showTooltipForElement(tooltipElement);
+      }
+    }
+
+    function handleFocusOut() {
+      setTooltip(null);
+    }
+
+    rootElement.addEventListener("pointerover", handlePointerOver);
+    rootElement.addEventListener("pointerout", handlePointerOut);
+    rootElement.addEventListener("focusin", handleFocusIn);
+    rootElement.addEventListener("focusout", handleFocusOut);
+
+    return () => {
+      rootElement.removeEventListener("pointerover", handlePointerOver);
+      rootElement.removeEventListener("pointerout", handlePointerOut);
+      rootElement.removeEventListener("focusin", handleFocusIn);
+      rootElement.removeEventListener("focusout", handleFocusOut);
+    };
+  }, [openMenu]);
 
   useLayoutEffect(() => {
     const viewport = viewportRef.current;
@@ -196,18 +361,42 @@ export function PdfDocumentViewer({
     }
 
     const viewportElement: HTMLDivElement = viewport;
+    let animationFrameId: number | null = null;
+
+    function measureStableFitWidth() {
+      const viewportWidth = viewportElement.getBoundingClientRect().width;
+      return Math.max(240, Math.floor(viewportWidth - 56));
+    }
 
     function updateFitWidth() {
-      setFitWidth(Math.max(240, Math.floor(viewportElement.clientWidth - 28)));
+      if (animationFrameId !== null) {
+        return;
+      }
+
+      animationFrameId = window.requestAnimationFrame(() => {
+        animationFrameId = null;
+        const nextFitWidth = measureStableFitWidth();
+        setFitWidth((currentFitWidth) => {
+          if (Math.abs(currentFitWidth - nextFitWidth) < 4) {
+            return currentFitWidth;
+          }
+          return nextFitWidth;
+        });
+      });
     }
 
     updateFitWidth();
 
     const observer = new ResizeObserver(updateFitWidth);
+
     observer.observe(viewportElement);
 
     return () => {
       observer.disconnect();
+
+      if (animationFrameId !== null) {
+        window.cancelAnimationFrame(animationFrameId);
+      }
     };
   }, []);
 
@@ -215,10 +404,7 @@ export function PdfDocumentViewer({
     function handlePointerDown(event: PointerEvent) {
       const target = event.target;
 
-      if (
-        target instanceof Element &&
-        target.closest("[data-pdf-menu-root]")
-      ) {
+      if (target instanceof Element && (target.closest("[data-pdf-menu-root]") || target.closest("[data-pdf-floating-menu]"))) {
         return;
       }
 
@@ -591,15 +777,222 @@ export function PdfDocumentViewer({
     return <RotateCw size={17} />;
   }
 
+  function renderOpenPdfMenu() {
+    if (!openMenu || typeof document === "undefined") {
+      return null;
+    }
+
+    if (openMenu === "zoom") {
+      return createPortal(
+        <div
+          className="pdf-menu pdf-zoom-menu"
+          data-pdf-theme={settings.darkMode ? "dark" : "light"}
+          style={{ top: menuPosition.top, left: menuPosition.left }}
+          data-pdf-floating-menu
+          onPointerDown={(event) => event.stopPropagation()}
+          onClick={(event) => event.stopPropagation()}
+        >
+          <button
+            type="button"
+            className={`pdf-menu-item pdf-zoom-menu-item ${zoom === "fit" ? "is-selected" : ""}`}
+            onClick={() => {
+              setViewerZoom("fit");
+              setOpenMenu(null);
+            }}
+          >
+            <span>Zoom to fit</span>
+            <span className="pdf-menu-shortcut">Ctrl0</span>
+          </button>
+
+          <div className="pdf-menu-separator" />
+
+          <button
+            type="button"
+            className="pdf-menu-item pdf-zoom-menu-item"
+            onClick={() => {
+              handleZoomIn();
+              setOpenMenu(null);
+            }}
+          >
+            <span>Zoom in</span>
+            <span className="pdf-menu-shortcut">Ctrl+</span>
+          </button>
+
+          <button
+            type="button"
+            className="pdf-menu-item pdf-zoom-menu-item"
+            onClick={() => {
+              handleZoomOut();
+              setOpenMenu(null);
+            }}
+          >
+            <span>Zoom out</span>
+            <span className="pdf-menu-shortcut">Ctrl-</span>
+          </button>
+
+          <div className="pdf-menu-separator" />
+
+          {PRESET_ZOOMS.map((preset) => (
+            <button
+              key={preset}
+              type="button"
+              className={`pdf-menu-item pdf-zoom-menu-item ${
+                zoom === preset ? "is-selected" : ""
+              }`}
+              onClick={() => {
+                setViewerZoom(preset);
+                setOpenMenu(null);
+              }}
+            >
+              <span>{preset}%</span>
+
+              {zoom === preset ? (
+                <Check size={16} />
+              ) : null}
+            </button>
+          ))}
+        </div>,
+        document.body
+      );
+    }
+
+    if (openMenu === "status") {
+      return createPortal(
+        <div
+          className="pdf-menu pdf-status-menu"
+          data-pdf-theme={settings.darkMode ? "dark" : "light"}
+          style={{top: menuPosition.top, left: menuPosition.left}}
+          data-pdf-floating-menu
+          onPointerDown={(event) => event.stopPropagation()}
+          onClick={(event) => event.stopPropagation()}
+        >
+          <button
+            type="button"
+            className="pdf-menu-item"
+            disabled={compileStatus === "compiling"}
+            onClick={() => {
+              setOpenMenu(null);
+              onCompile();
+            }}
+          >
+            <span>{compileStatus === "compiled" ? "Recompile PDF" : "Compile PDF"}</span>
+          </button>
+        </div>,
+        document.body
+      );
+    }
+
+    return createPortal(
+      <div
+        className="pdf-menu pdf-more-menu"
+        data-pdf-theme={settings.darkMode ? "dark" : "light"}
+        style={{top: menuPosition.top,left: menuPosition.left}}
+        data-pdf-floating-menu
+        onPointerDown={(event) => event.stopPropagation()}
+        onClick={(event) => event.stopPropagation()}
+      >
+        <button
+          type="button"
+          className="pdf-menu-item"
+          disabled={!pdfUrl}
+          onClick={() => {
+            setOpenMenu(null);
+
+            if (pdfUrl) {
+              window.open(pdfUrl, "_blank", "noopener,noreferrer");
+            }
+          }}
+        >
+          <ExternalLink size={16} />
+          <span>Open in new tab</span>
+        </button>
+
+        <button
+          type="button"
+          className="pdf-menu-item"
+          disabled={!pdfUrl}
+          onClick={() => void handlePrintPdf()}
+        >
+          <Printer size={16} />
+          <span>Print PDF</span>
+        </button>
+
+        <div className="pdf-menu-separator" />
+
+        <button
+          type="button"
+          className="pdf-menu-item"
+          onClick={() => {
+            rotateViewer(-90);
+            setOpenMenu(null);
+          }}
+        >
+          <RotateCcw size={16} />
+          <span>Rotate counterclockwise</span>
+        </button>
+
+        <button
+          type="button"
+          className="pdf-menu-item"
+          onClick={() => {
+            rotateViewer(90);
+            setOpenMenu(null);
+          }}
+        >
+          <RotateCw size={16} />
+          <span>Rotate clockwise</span>
+        </button>
+      </div>,
+      document.body
+    );
+  }
+
+  function renderPdfMenuShield() {
+    if (!openMenu || typeof document === "undefined") {
+      return null;
+    }
+
+    return createPortal(
+      <div
+        className="pdf-menu-interaction-shield"
+        aria-hidden="true"
+        onPointerDown={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          setOpenMenu(null);
+        }}
+      />,
+      document.body
+    );
+  }
+
   return (
     <section
       ref={rootRef}
       className="pdf-viewer"
       data-pdf-theme={settings.darkMode ? "dark" : "light"}
     >
+      {openMenu ? (
+        <div
+          className="pdf-menu-interaction-shield"
+          aria-hidden="true"
+          onPointerDown={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            setOpenMenu(null);
+          }}
+        />
+      ) : null}
       <header className="pdf-viewer-toolbar">
         <div
-          className="pdf-status-menu-wrap"
+          ref={statusMenuAnchorRef}
+          className="pdf-status-menu-wrap pdf-tooltip-button"
+          data-tooltip={
+            compileStatus === "compiling" ? "Compiling..."
+              : compileStatus === "compiled" ? "Recompile PDF"
+                : compileStatus === "failed" ? "Compile PDF"
+                  : "Compile PDF"
+          }
           data-pdf-menu-root
         >
           <div
@@ -620,27 +1013,10 @@ export function PdfDocumentViewer({
               className="pdf-status-chevron"
               aria-label="Open compilation menu"
               aria-expanded={openMenu === "status"}
-              onClick={() => setOpenMenu((current) => (current === "status" ? null : "status"))}>
+              onClick={() => toggleFloatingMenu("status")}>
               <ChevronDown size={16} />
             </button>
           </div>
-
-          {openMenu === "status" ? (
-            <div className="pdf-menu pdf-status-menu">
-              <button
-                type="button"
-                className="pdf-menu-item"
-                disabled={compileStatus === "compiling"}
-                onClick={() => {
-                  setOpenMenu(null);
-                  onCompile();
-                }}
-              >
-                <RotateCw size={16} />
-                <span>Recompile PDF</span>
-              </button>
-            </div>
-          ) : null}
         </div>
 
         <div className="pdf-viewer-toolbar-center">
@@ -676,7 +1052,9 @@ export function PdfDocumentViewer({
           </div>
 
           <div
-            className="pdf-zoom-menu-wrap"
+            ref={zoomMenuAnchorRef}
+            className="pdf-zoom-menu-wrap pdf-tooltip-button"
+            data-tooltip="Zoom"
             data-pdf-menu-root
           >
             <button
@@ -684,7 +1062,7 @@ export function PdfDocumentViewer({
               className="pdf-zoom-trigger"
               aria-label="PDF zoom"
               aria-expanded={openMenu === "zoom"}
-              onClick={() => setOpenMenu((current) => (current === "zoom" ? null : "zoom"))}>
+              onClick={() => toggleFloatingMenu("zoom")}>
               <ZoomFitIcon size={15} />
               <span>{zoomLabel}</span>
               <ChevronDown
@@ -692,71 +1070,6 @@ export function PdfDocumentViewer({
                 size={16}
               />
             </button>
-
-            {openMenu === "zoom" ? (
-              <div className="pdf-menu pdf-zoom-menu">
-                <button
-                  type="button"
-                  className={`pdf-menu-item pdf-zoom-menu-item ${
-                    zoom === "fit" ? "is-selected" : ""
-                  }`}
-                  onClick={() => {
-                    setViewerZoom("fit");
-                    setOpenMenu(null);
-                  }}
-                >
-                  <span>Zoom to fit</span>
-                  <span className="pdf-menu-shortcut">Ctrl0</span>
-                </button>
-
-                <div className="pdf-menu-separator" />
-
-                <button
-                  type="button"
-                  className="pdf-menu-item pdf-zoom-menu-item"
-                  onClick={() => {
-                    handleZoomIn();
-                    setOpenMenu(null);
-                  }}
-                >
-                  <span>Zoom in</span>
-                  <span className="pdf-menu-shortcut">Ctrl+</span>
-                </button>
-
-                <button
-                  type="button"
-                  className="pdf-menu-item pdf-zoom-menu-item"
-                  onClick={() => {
-                    handleZoomOut();
-                    setOpenMenu(null);
-                  }}
-                >
-                  <span>Zoom out</span>
-                  <span className="pdf-menu-shortcut">Ctrl-</span>
-                </button>
-
-                <div className="pdf-menu-separator" />
-
-                {PRESET_ZOOMS.map((preset) => (
-                  <button
-                    key={preset}
-                    type="button"
-                    className={`pdf-menu-item pdf-zoom-menu-item ${
-                      zoom === preset ? "is-selected" : ""
-                    }`}
-                    onClick={() => {
-                      setViewerZoom(preset);
-                      setOpenMenu(null);
-                    }}
-                  >
-                    <span>{preset}%</span>
-                    {zoom === preset ? (
-                      <Check size={16} />
-                    ) : null}
-                  </button>
-                ))}
-              </div>
-            ) : null}
           </div>
         </div>
 
@@ -783,6 +1096,7 @@ export function PdfDocumentViewer({
           )}
 
           <div
+            ref={moreMenuAnchorRef}
             className="pdf-more-menu-wrap"
             data-pdf-menu-root
           >
@@ -793,61 +1107,10 @@ export function PdfDocumentViewer({
               data-tooltip="More PDF actions"
               aria-expanded={openMenu === "more"}
               disabled={!pdfUrl}
-              onClick={() => setOpenMenu((current) => (current === "more" ? null : "more"))}
+              onClick={() => toggleFloatingMenu("more")}
             >
               <Ellipsis size={19} />
             </button>
-
-            {openMenu === "more" ? (
-              <div className="pdf-menu pdf-more-menu">
-                <button
-                  type="button"
-                  className="pdf-menu-item"
-                  onClick={() => {
-                    setOpenMenu(null);
-                    window.open(pdfUrl, "_blank", "noopener,noreferrer");
-                  }}
-                >
-                  <ExternalLink size={16} />
-                  <span>Open in new tab</span>
-                </button>
-
-                <button
-                  type="button"
-                  className="pdf-menu-item"
-                  onClick={() => void handlePrintPdf()}
-                >
-                  <Printer size={16} />
-                  <span>Print PDF</span>
-                </button>
-
-                <div className="pdf-menu-separator" />
-
-                <button
-                  type="button"
-                  className="pdf-menu-item"
-                  onClick={() => {
-                    rotateViewer(-90);
-                    setOpenMenu(null);
-                  }}
-                >
-                  <RotateCcw size={16} />
-                  <span>Rotate counterclockwise</span>
-                </button>
-
-                <button
-                  type="button"
-                  className="pdf-menu-item"
-                  onClick={() => {
-                    rotateViewer(90);
-                    setOpenMenu(null);
-                  }}
-                >
-                  <RotateCw size={16} />
-                  <span>Rotate clockwise</span>
-                </button>
-              </div>
-            ) : null}
           </div>
         </div>
       </header>
@@ -985,6 +1248,24 @@ export function PdfDocumentViewer({
           </span>
         </nav>
       ) : null}
+
+      {renderOpenPdfMenu()}
+
+      {tooltip && typeof document !== "undefined"
+        ? createPortal(
+            <div
+              className={tooltip.placement === "above"
+                ? "pdf-global-tooltip is-above"
+                : "pdf-global-tooltip is-below"
+              }
+              style={{top: tooltip.top, left: tooltip.left}}
+            >
+              {tooltip.text}
+            </div>, document.body
+          )
+        : null}
+
+      {renderPdfMenuShield()}
     </section>
   );
 }

@@ -36,7 +36,6 @@ import {
   Separator,
   useDefaultLayout,
 } from "react-resizable-panels";
-import { panelLayoutStorage } from "@/lib/panel-layout-storage";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { MessageDialog } from "@/components/ui/MessageDialog";
 import { TextInputDialog } from "@/components/ui/TextInputDialog";
@@ -62,6 +61,26 @@ interface CompiledPdfVersion {
 interface CompiledPdfHistory {
   entries: CompiledPdfVersion[];
   index: number;
+}
+
+const MAIN_AREA_DEFAULT_SIZE = 80.5;
+const MAIN_AREA_MIN_SIZE = 70;
+const MAIN_AREA_MAX_SIZE = 87;
+
+const RIGHT_PANEL_DEFAULT_SIZE = 40.5;
+const RIGHT_PANEL_MIN_SIZE = 20.5;
+const RIGHT_PANEL_MAX_SIZE = 81;
+
+const LEFT_PANEL_DEFAULT_SIZE = 100 - MAIN_AREA_DEFAULT_SIZE;
+const LEFT_PANEL_MIN_SIZE = 100 - MAIN_AREA_MAX_SIZE;
+const LEFT_PANEL_MAX_SIZE = 100 - MAIN_AREA_MIN_SIZE;
+
+const EDITOR_PANEL_DEFAULT_SIZE = 100 - RIGHT_PANEL_DEFAULT_SIZE;
+const EDITOR_PANEL_MIN_SIZE = 100 - RIGHT_PANEL_MAX_SIZE;
+const EDITOR_PANEL_MAX_SIZE = 100 - RIGHT_PANEL_MIN_SIZE;
+
+function panelPercent(value: number) {
+  return `${value}%`;
 }
 
 export function TypforgeShell() {
@@ -109,8 +128,6 @@ export function TypforgeShell() {
     deleteDialog !== null ||
     messageDialog !== null ||
     pendingClosePath !== null;
-
-  const {defaultLayout, onLayoutChanged} = useDefaultLayout({id: "typforge-workspace-layout-v1",storage: panelLayoutStorage});
 
   const selectedPdfVersion = pdfHistory.index >= 0 ? pdfHistory.entries[pdfHistory.index] : undefined;
 
@@ -796,17 +813,15 @@ export function TypforgeShell() {
   return (
     <>
       <Group
-        id="typforge-workspace"
+        id="typforge-workspace-outer"
         orientation="horizontal"
         className={fullScreenModalOpen ? "shell shell-modal-blurred" : "shell"}
-        defaultLayout={defaultLayout}
-        onLayoutChanged={onLayoutChanged}
       >
         <Panel
           id="file-sidebar"
-          defaultSize="18%"
-          minSize="220px"
-          maxSize="360px"
+          defaultSize={panelPercent(LEFT_PANEL_DEFAULT_SIZE)}
+          minSize={panelPercent(LEFT_PANEL_MIN_SIZE)}
+          maxSize={panelPercent(LEFT_PANEL_MAX_SIZE)}
         >
           <div className="workspace-panel workspace-panel-sidebar">
             <LeftSidebar
@@ -837,59 +852,76 @@ export function TypforgeShell() {
         />
 
         <Panel
-          id="typst-editor"
-          defaultSize="36%"
-          minSize="360px"
+          id="workspace-main-area"
+          defaultSize={panelPercent(MAIN_AREA_DEFAULT_SIZE)}
+          minSize={panelPercent(MAIN_AREA_MIN_SIZE)}
+          maxSize={panelPercent(MAIN_AREA_MAX_SIZE)}
         >
-          <div className="workspace-panel workspace-panel-editor">
-            <EditorPane
-              openFiles={openFiles}
-              activePath={activePath}
-              content={content}
-              fontSize={editorSettings.fontSize}
-              toolsOpen={toolsOpen}
-              onChange={handleEditorChange}
-              onSelectTab={handleSelectEditorTab}
-              onCloseTab={handleRequestCloseEditorTab}
-              onOpenTools={() => setToolsOpen((value) => !value)}
-            />
-          </div>
-        </Panel>
+          <div className="workspace-panel workspace-panel-main">
+            <Group
+              id="typforge-workspace-inner"
+              orientation="horizontal"
+              className="workspace-inner-group"
+            >
+              <Panel
+                id="typst-editor"
+                defaultSize={panelPercent(EDITOR_PANEL_DEFAULT_SIZE)}
+                minSize={panelPercent(EDITOR_PANEL_MIN_SIZE)}
+                maxSize={panelPercent(EDITOR_PANEL_MAX_SIZE)}
+              >
+                <div className="workspace-panel workspace-panel-editor">
+                  <EditorPane
+                    openFiles={openFiles}
+                    activePath={activePath}
+                    content={content}
+                    fontSize={editorSettings.fontSize}
+                    toolsOpen={toolsOpen}
+                    onChange={handleEditorChange}
+                    onSelectTab={handleSelectEditorTab}
+                    onCloseTab={handleRequestCloseEditorTab}
+                    onOpenTools={() => setToolsOpen((value) => !value)}
+                  />
+                </div>
+              </Panel>
 
-        <Separator
-          id="editor-preview-separator"
-          className="workspace-resize-handle"
-        />
+              <Separator
+                id="editor-preview-separator"
+                className="workspace-resize-handle"
+              />
 
-        <Panel
-          id="preview-tools"
-          defaultSize="46%"
-          minSize="400px"
-        >
-          <div className="workspace-panel workspace-panel-right">
-            {toolsOpen ? (
-              <ToolsPanel
-                activeTab={activeTool}
-                onChangeTab={setActiveTool}
-                project={project}
-                versions={versions}
-                logs={logs}
-                onCreateVersion={handleCreateVersion}
-                onRestoreVersion={handleRestoreVersion}
-              />
-            ) : (
-              <PdfPreviewPane
-                pdfUrl={pdfUrl}
-                downloadUrl={downloadUrl}
-                compileStatus={compileStatus}
-                settings={pdfViewerSettings}
-                canShowPreviousCompile={canShowPreviousCompile}
-                canShowNextCompile={canShowNextCompile}
-                onCompile={handleCompile}
-                onShowPreviousCompile={handleShowPreviousCompile}
-                onShowNextCompile={handleShowNextCompile}
-              />
-            )}
+              <Panel
+                id="preview-tools"
+                defaultSize={panelPercent(RIGHT_PANEL_DEFAULT_SIZE)}
+                minSize={panelPercent(RIGHT_PANEL_MIN_SIZE)}
+                maxSize={panelPercent(RIGHT_PANEL_MAX_SIZE)}
+              >
+                <div className="workspace-panel workspace-panel-right">
+                  {toolsOpen ? (
+                    <ToolsPanel
+                      activeTab={activeTool}
+                      onChangeTab={setActiveTool}
+                      project={project}
+                      versions={versions}
+                      logs={logs}
+                      onCreateVersion={handleCreateVersion}
+                      onRestoreVersion={handleRestoreVersion}
+                    />
+                  ) : (
+                    <PdfPreviewPane
+                      pdfUrl={pdfUrl}
+                      downloadUrl={downloadUrl}
+                      compileStatus={compileStatus}
+                      settings={pdfViewerSettings}
+                      canShowPreviousCompile={canShowPreviousCompile}
+                      canShowNextCompile={canShowNextCompile}
+                      onCompile={handleCompile}
+                      onShowPreviousCompile={handleShowPreviousCompile}
+                      onShowNextCompile={handleShowNextCompile}
+                    />
+                  )}
+                </div>
+              </Panel>
+            </Group>
           </div>
         </Panel>
       </Group>

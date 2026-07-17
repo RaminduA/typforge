@@ -1,8 +1,15 @@
 "use client";
 
-import { Check, ChevronDown, ChevronUp } from "lucide-react";
+import {
+  Check,
+  ChevronDown
+} from "lucide-react";
 
-import { useEffect, useRef, useState } from "react";
+import {
+  useEffect,
+  useRef,
+  useState
+} from "react";
 
 import { createPortal } from "react-dom";
 
@@ -23,20 +30,17 @@ interface MenuPosition {
   left: number;
 }
 
-const MENU_WIDTH = 220;
+export function SettingsSelect<T extends string>({value, options, ariaLabel, onChange}: SettingsSelectProps<T>) {
+  const triggerRef = useRef<HTMLButtonElement>(null);
 
-const VIEWPORT_PADDING = 8;
-
-export function SettingsSelect<T extends string>({ value, options, ariaLabel, onChange }: SettingsSelectProps<T>) {
   const [open, setOpen] = useState(false);
-  const [menuPosition, setMenuPosition] = useState<MenuPosition>({ top: 0, left: 0 });
-  const containerRef = useRef<HTMLDivElement>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
+
+  const [menuPosition, setMenuPosition] = useState<MenuPosition>({top: 0, left: 0});
 
   const selectedOption = options.find((option) => option.value === value) ?? options[0];
 
-  function calculateMenuPosition() {
-    const trigger = containerRef.current;
+  function updateMenuPosition() {
+    const trigger = triggerRef.current;
 
     if (!trigger) {
       return;
@@ -44,33 +48,7 @@ export function SettingsSelect<T extends string>({ value, options, ariaLabel, on
 
     const bounds = trigger.getBoundingClientRect();
 
-    const preferredLeft = bounds.right - MENU_WIDTH;
-
-    setMenuPosition({
-      top: bounds.bottom + 7,
-
-      left: Math.max(
-        VIEWPORT_PADDING,
-        Math.min(preferredLeft, window.innerWidth - MENU_WIDTH - VIEWPORT_PADDING)
-      )
-    });
-  }
-
-  function handleTriggerClick() {
-    if (open) {
-      setOpen(false);
-
-      return;
-    }
-
-    /*
-     * Calculate the final position
-     * before rendering the menu.
-     * This avoids visible jumping.
-     */
-    calculateMenuPosition();
-
-    setOpen(true);
+    setMenuPosition({top: bounds.bottom + 7, left: bounds.right - 220});
   }
 
   useEffect(() => {
@@ -78,15 +56,10 @@ export function SettingsSelect<T extends string>({ value, options, ariaLabel, on
       return;
     }
 
-    function handlePointerDown(event: PointerEvent) {
-      const target = event.target as Node;
+    updateMenuPosition();
 
-      const clickedTrigger = containerRef.current?.contains(target);
-      const clickedMenu = menuRef.current?.contains(target);
-
-      if (!clickedTrigger && !clickedMenu) {
-        setOpen(false);
-      }
+    function handleResizeOrScroll() {
+      updateMenuPosition();
     }
 
     function handleKeyDown(event: KeyboardEvent) {
@@ -95,86 +68,92 @@ export function SettingsSelect<T extends string>({ value, options, ariaLabel, on
       }
     }
 
-    function handleViewportChange() {
-      calculateMenuPosition();
-    }
-
-    window.addEventListener("pointerdown", handlePointerDown, true);
+    window.addEventListener("resize", handleResizeOrScroll);
+    window.addEventListener("scroll", handleResizeOrScroll, true);
     window.addEventListener("keydown", handleKeyDown);
-    window.addEventListener("resize", handleViewportChange);
-
-    /*
-     * Capture scroll events from
-     * the Settings content container.
-     */
-    window.addEventListener("scroll", handleViewportChange, true);
 
     return () => {
-      window.removeEventListener("pointerdown", handlePointerDown, true);
+      window.removeEventListener("resize", handleResizeOrScroll);
+      window.removeEventListener("scroll", handleResizeOrScroll, true);
       window.removeEventListener("keydown", handleKeyDown);
-      window.removeEventListener("resize", handleViewportChange);
-      window.removeEventListener("scroll", handleViewportChange, true);
     };
   }, [open]);
 
-  const menu = open && typeof document !== "undefined" ? createPortal(
-          <div
-            ref={menuRef}
-            className="settings-select-menu settings-select-menu-portal"
-            role="listbox"
-            aria-label={ariaLabel}
-            style={{
-              top: menuPosition.top,
-              left: menuPosition.left
-            }}
-          >
-            {options.map(
-              (option) => {
-                const selected = option.value === value;
-
-                return (
-                  <button
-                    key={option.value}
-                    type="button"
-                    role="option"
-                    aria-selected={selected}
-                    className={selected ? "settings-select-option selected" : "settings-select-option"}
-                    onClick={() => {
-                      onChange(option.value);
-                      setOpen(false);
-                    }}
-                  >
-                    <span>{option.label}</span>
-
-                    {selected ? <Check size={16} /> : <span className="settings-select-check-placeholder" />}
-                  </button>
-                );
-              }
-            )}
-          </div>, document.body) : null;
-
   return (
-    <>
-      <div
-        ref={containerRef}
-        className={open ? "settings-select-control open" : "settings-select-control"}
+    <div
+      className={open ? "settings-select-control open" : "settings-select-control"}
+    >
+      <button
+        ref={triggerRef}
+        type="button"
+        className={open ? "settings-select-trigger open" : "settings-select-trigger"}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-label={ariaLabel}
+        onClick={() => {
+          updateMenuPosition();
+          setOpen((current) => !current);
+        }}
       >
-        <button
-          type="button"
-          className={open ? "settings-select-trigger open" : "settings-select-trigger"}
-          aria-haspopup="listbox"
-          aria-expanded={open}
-          onClick={handleTriggerClick}
-        >
-          <span>
-            {selectedOption.label}
-          </span>
+        <span>{selectedOption.label}</span>
+        <ChevronDown size={17} />
+      </button>
 
-          {open ? (<ChevronUp size={17} />) : (<ChevronDown size={17} />)}
-        </button>
-      </div>
+      {open && typeof document !== "undefined" ? createPortal(
+            <>
+              <div
+                className="settings-select-interaction-shield"
+                aria-hidden="true"
+                onPointerDown={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  setOpen(false);
+                }}
+              />
 
-      {menu}
-    </>
+              <div
+                className="settings-select-menu-portal"
+                style={{top: menuPosition.top,left: menuPosition.left}}
+                onPointerDown={(event) => {
+                  event.stopPropagation();
+                }}
+              >
+                <div
+                  className="settings-select-menu"
+                  role="listbox"
+                  aria-label={ariaLabel}
+                >
+                  {options.map((option) => {
+                    const selected = option.value === value;
+
+                    return (
+                      <button
+                        key={option.value}
+                        type="button"
+                        role="option"
+                        aria-selected={selected}
+                        className={selected ? "settings-select-option selected" : "settings-select-option" }
+                        onClick={() => {
+                          onChange(option.value);
+                          setOpen(false);
+                        }}
+                      >
+                        <span>{option.label}</span>
+
+                        {selected ? (
+                          <Check size={16} />
+                        ) : (
+                          <span className="settings-select-check-placeholder" />
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </>,
+            document.body
+          )
+        : null}
+    </div>
   );
 }

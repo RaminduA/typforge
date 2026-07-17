@@ -1,12 +1,7 @@
 "use client";
 
-import {
-  type ReactNode,
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState
-} from "react";
+import type { ReactNode } from "react";
+import { createPortal } from "react-dom";
 
 export interface PopupMenuItem {
   id: string;
@@ -27,117 +22,58 @@ interface PopupMenuProps {
 }
 
 export function PopupMenu({ open, x, y, items, onClose }: PopupMenuProps) {
-  const menuRef = useRef<HTMLDivElement>(null);
-
-  const [position, setPosition] = useState({ x, y });
-  const [positioned, setPositioned] = useState(false);
-
-  useEffect(() => {
-    setPosition({ x, y });
-  }, [x, y]);
-
-  useLayoutEffect(() => {
-    if (!open) {
-      return;
-    }
-
-    const menu = menuRef.current;
-
-    if (!menu) {
-      return;
-    }
-
-    const bounds = menu.getBoundingClientRect();
-
-    const padding = 8;
-
-    const maximumX = Math.max(padding, window.innerWidth - bounds.width - padding);
-    const maximumY = Math.max(padding, window.innerHeight - bounds.height - padding);
-
-    setPosition({
-      x: Math.max(padding, Math.min(x, maximumX)),
-      y: Math.max(padding, Math.min(y, maximumY))
-    });
-
-    setPositioned(true);
-  }, [open, x, y, items.length]);
-
-  useEffect(() => {
-    if (!open) {
-      setPositioned(false);
-    }
-  }, [open]);
-
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-
-    function handlePointerDown(event: PointerEvent) {
-      const menu = menuRef.current;
-
-      if (menu && !menu.contains(event.target as Node)) {
-        onClose();
-      }
-    }
-
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        onClose();
-      }
-    }
-
-    window.addEventListener("pointerdown", handlePointerDown, true);
-    window.addEventListener("keydown", handleKeyDown);
-
-    return () => {
-      window.removeEventListener("pointerdown", handlePointerDown, true);
-      window.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [open, onClose]);
-
-  if (!open) {
+  if (!open || typeof document === "undefined") {
     return null;
   }
 
-  return (
-    <div
-      ref={menuRef}
-      className={positioned ? "popup-menu is-positioned" : "popup-menu"}
-      style={{
-        left: position.x,
-        top: position.y,
-        visibility: positioned ? "visible" : "hidden"
-      }}
-      role="menu"
-    >
-      {items.map((item) => (
-        <div key={item.id}>
-          {item.separatorBefore ? (<div className="popup-menu-separator" />) : null}
+  return createPortal(
+    <>
+      <div
+        className="small-popup-interaction-shield"
+        aria-hidden="true"
+        onPointerDown={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          onClose();
+        }}
+      />
 
-          <button
-            type="button"
-            role="menuitem"
-            className={item.danger ? "popup-menu-item danger" : "popup-menu-item"}
-            disabled={item.disabled}
-            onClick={() => {
-              onClose();
+      <div
+        className="popup-menu is-positioned"
+        role="menu"
+        style={{left: x, top: y}}
+        onPointerDown={(event) => {
+          event.stopPropagation();
+        }}
+      >
+        {items.map((item) => (
+          <div key={item.id}>
+            {item.separatorBefore ? (
+              <div className="popup-menu-separator" />
+            ) : null}
 
-              if (!item.disabled) {
+            <button
+              type="button"
+              role="menuitem"
+              className={item.danger ? "popup-menu-item danger" : "popup-menu-item"}
+              disabled={item.disabled}
+              onClick={() => {
                 item.onSelect();
-              }
-            }}
-          >
-            <span className="popup-menu-icon">
-              {item.icon}
-            </span>
+                onClose();
+              }}
+            >
+              {item.icon ? (
+                <span className="popup-menu-icon">
+                  {item.icon}
+                </span>
+              ) : null}
 
-            <span>
-              {item.label}
-            </span>
-          </button>
-        </div>
-      ))}
-    </div>
+              <span>{item.label}</span>
+            </button>
+          </div>
+        ))}
+      </div>
+    </>,
+    document.body
   );
 }
