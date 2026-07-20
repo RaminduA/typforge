@@ -19,10 +19,7 @@ type FileSystemStore struct {
 }
 
 func NewFileSystemStore(projectsRoot string, buildsRoot string) (*FileSystemStore, error) {
-	store := &FileSystemStore{
-		ProjectsRoot: projectsRoot,
-		BuildsRoot:   buildsRoot,
-	}
+	store := &FileSystemStore{ProjectsRoot: projectsRoot, BuildsRoot: buildsRoot}
 
 	if err := os.MkdirAll(projectsRoot, 0755); err != nil {
 		return nil, err
@@ -64,15 +61,10 @@ func (s *FileSystemStore) CreateProject(ctx context.Context, name string) (*Proj
 		return nil, err
 	}
 
-	project := &Project{
-		ID:        projectID,
-		Name:      name,
-		EntryFile: "main.typ",
-		CreatedAt: now,
-		UpdatedAt: now,
-	}
+	project := &Project{ID: projectID, Name: name, EntryFile: "main.typ", CreatedAt: now, UpdatedAt: now}
 
-	defaultContent := `#set page(width: 8.5in, height: 11in, margin: 1in)
+	defaultContent :=
+		`#set page(width: 8.5in, height: 11in, margin: 1in)
 #set text(font: "Linux Libertine", size: 11pt)
 
 = Welcome to Typforge
@@ -202,12 +194,7 @@ func buildTree(root string, current string) (*FileNode, error) {
 		nodePath = ""
 	}
 
-	node := &FileNode{
-		Name: info.Name(),
-		Path: nodePath,
-		Type: "file",
-		Size: info.Size(),
-	}
+	node := &FileNode{Name: info.Name(), Path: nodePath, Type: "file", Size: info.Size()}
 
 	if info.IsDir() {
 		node.Type = "folder"
@@ -379,11 +366,7 @@ func (s *FileSystemStore) CreateVersion(ctx context.Context, projectID string, m
 		message = "Manual snapshot"
 	}
 
-	version := &VersionSnapshot{
-		ID:        NewID("ver"),
-		Message:   message,
-		CreatedAt: time.Now().UTC(),
-	}
+	version := &VersionSnapshot{ID: NewID("ver"), Message: message, CreatedAt: time.Now().UTC()}
 
 	versionDir := filepath.Join(s.versionsDir(projectID), version.ID)
 
@@ -521,12 +504,7 @@ func copyDir(src string, dest string, skipTypforge bool) error {
 	})
 }
 
-func (s *FileSystemStore) RenameEntry(
-	ctx context.Context,
-	projectID string,
-	oldPath string,
-	newName string,
-) (string, error) {
+func (s *FileSystemStore) RenameEntry(ctx context.Context, projectID string, oldPath string, newName string) (string, error) {
 	oldNormalized, err := NormalizeProjectPath(oldPath)
 	if err != nil {
 		return "", err
@@ -535,32 +513,20 @@ func (s *FileSystemStore) RenameEntry(
 	newName = strings.TrimSpace(newName)
 	newName = strings.ReplaceAll(newName, "\\", "/")
 
-	if newName == "" ||
-		newName == "." ||
-		newName == ".." ||
-		strings.Contains(newName, "/") {
+	if newName == "" || newName == "." || newName == ".." || strings.Contains(newName, "/") {
 		return "", errors.New("invalid new name")
 	}
 
-	oldTarget, err := s.projectFilePath(
-		projectID,
-		oldNormalized,
-	)
+	oldTarget, err := s.projectFilePath(projectID, oldNormalized)
 	if err != nil {
 		return "", err
 	}
 
 	if _, err := os.Stat(oldTarget); err != nil {
-		return "", errors.New(
-			"file or directory not found",
-		)
+		return "", errors.New("file or directory not found")
 	}
 
-	parent := filepath.ToSlash(
-		filepath.Dir(
-			filepath.FromSlash(oldNormalized),
-		),
-	)
+	parent := filepath.ToSlash(filepath.Dir(filepath.FromSlash(oldNormalized)))
 
 	if parent == "." {
 		parent = ""
@@ -569,74 +535,40 @@ func (s *FileSystemStore) RenameEntry(
 	newProjectPath := newName
 
 	if parent != "" {
-		newProjectPath =
-			parent + "/" + newName
+		newProjectPath = parent + "/" + newName
 	}
 
-	newTarget, err := s.projectFilePath(
-		projectID,
-		newProjectPath,
-	)
+	newTarget, err := s.projectFilePath(projectID, newProjectPath)
 	if err != nil {
 		return "", err
 	}
 
 	if _, err := os.Stat(newTarget); err == nil {
-		return "", errors.New(
-			"a file or directory with that name already exists",
-		)
+		return "", errors.New("a file or directory with that name already exists")
 	}
 
-	if err := os.Rename(
-		oldTarget,
-		newTarget,
-	); err != nil {
+	if err := os.Rename(oldTarget, newTarget); err != nil {
 		return "", err
 	}
 
-	currentProject, err :=
-		s.GetProject(
-			ctx,
-			projectID,
-		)
-
+	currentProject, err := s.GetProject(ctx, projectID)
 	if err != nil {
-		_ = os.Rename(
-			newTarget,
-			oldTarget,
-		)
+		_ = os.Rename(newTarget, oldTarget)
 
 		return "", err
 	}
 
-	entryWasRenamed :=
-		currentProject.EntryFile ==
-			oldNormalized ||
-			strings.HasPrefix(
-				currentProject.EntryFile,
-				oldNormalized+"/",
-			)
+	entryWasRenamed := currentProject.EntryFile == oldNormalized || strings.HasPrefix(currentProject.EntryFile, oldNormalized+"/")
 
 	if entryWasRenamed {
-		suffix := strings.TrimPrefix(
-			currentProject.EntryFile,
-			oldNormalized,
-		)
+		suffix := strings.TrimPrefix(currentProject.EntryFile, oldNormalized)
 
-		currentProject.EntryFile =
-			newProjectPath + suffix
+		currentProject.EntryFile = newProjectPath + suffix
 
-		currentProject.UpdatedAt =
-			time.Now().UTC()
+		currentProject.UpdatedAt = time.Now().UTC()
 
-		if err := s.saveProject(
-			currentProject,
-		); err != nil {
-			_ = os.Rename(
-				newTarget,
-				oldTarget,
-			)
-
+		if err := s.saveProject(currentProject); err != nil {
+			_ = os.Rename(newTarget, oldTarget)
 			return "", err
 		}
 	}
@@ -644,14 +576,8 @@ func (s *FileSystemStore) RenameEntry(
 	return newProjectPath, nil
 }
 
-func (s *FileSystemStore) GetProjectFilePath(
-	projectID string,
-	projectPath string,
-) (string, error) {
-	target, err := s.projectFilePath(
-		projectID,
-		projectPath,
-	)
+func (s *FileSystemStore) GetProjectFilePath(projectID string, projectPath string) (string, error) {
+	target, err := s.projectFilePath(projectID, projectPath)
 	if err != nil {
 		return "", err
 	}
@@ -662,30 +588,19 @@ func (s *FileSystemStore) GetProjectFilePath(
 	}
 
 	if info.IsDir() {
-		return "", errors.New(
-			"requested path is a directory",
-		)
+		return "", errors.New("requested path is a directory")
 	}
 
 	return target, nil
 }
 
-func (s *FileSystemStore) DuplicateProject(
-	ctx context.Context,
-	projectID string,
-) (*Project, error) {
-	source, err := s.GetProject(
-		ctx,
-		projectID,
-	)
+func (s *FileSystemStore) DuplicateProject(ctx context.Context, projectID string) (*Project, error) {
+	source, err := s.GetProject(ctx, projectID)
 	if err != nil {
 		return nil, err
 	}
 
-	duplicate, err := s.CreateProject(
-		ctx,
-		source.Name+" Copy",
-	)
+	duplicate, err := s.CreateProject(ctx, "Copy of "+source.Name)
 	if err != nil {
 		return nil, err
 	}
@@ -693,11 +608,7 @@ func (s *FileSystemStore) DuplicateProject(
 	sourceDir := s.ProjectDir(source.ID)
 	duplicateDir := s.ProjectDir(duplicate.ID)
 
-	if err := copyDir(
-		sourceDir,
-		duplicateDir,
-		true,
-	); err != nil {
+	if err := copyDir(sourceDir, duplicateDir, true); err != nil {
 		_ = os.RemoveAll(duplicateDir)
 		return nil, err
 	}
@@ -712,11 +623,7 @@ func (s *FileSystemStore) DuplicateProject(
 	return duplicate, nil
 }
 
-func (s *FileSystemStore) WriteProjectZIP(
-	ctx context.Context,
-	projectID string,
-	writer io.Writer,
-) error {
+func (s *FileSystemStore) WriteProjectZIP(ctx context.Context, projectID string, writer io.Writer) error {
 	projectDir := s.ProjectDir(projectID)
 
 	if _, err := os.Stat(projectDir); err != nil {
@@ -727,11 +634,7 @@ func (s *FileSystemStore) WriteProjectZIP(
 
 	walkErr := filepath.WalkDir(
 		projectDir,
-		func(
-			currentPath string,
-			entry os.DirEntry,
-			walkErr error,
-		) error {
+		func(currentPath string, entry os.DirEntry, walkErr error) error {
 			if walkErr != nil {
 				return walkErr
 			}
@@ -742,17 +645,12 @@ func (s *FileSystemStore) WriteProjectZIP(
 			default:
 			}
 
-			relativePath, err := filepath.Rel(
-				projectDir,
-				currentPath,
-			)
+			relativePath, err := filepath.Rel(projectDir, currentPath)
 			if err != nil {
 				return err
 			}
 
-			relativePath = filepath.ToSlash(
-				relativePath,
-			)
+			relativePath = filepath.ToSlash(relativePath)
 
 			if relativePath == "." {
 				return nil
@@ -762,10 +660,7 @@ func (s *FileSystemStore) WriteProjectZIP(
 				return filepath.SkipDir
 			}
 
-			if strings.HasPrefix(
-				relativePath,
-				".typforge/",
-			) {
+			if strings.HasPrefix(relativePath, ".typforge/") {
 				return nil
 			}
 
@@ -786,24 +681,17 @@ func (s *FileSystemStore) WriteProjectZIP(
 			header.Name = relativePath
 			header.Method = zip.Deflate
 
-			zipFile, err := zipWriter.CreateHeader(
-				header,
-			)
+			zipFile, err := zipWriter.CreateHeader(header)
 			if err != nil {
 				return err
 			}
 
-			sourceFile, err := os.Open(
-				currentPath,
-			)
+			sourceFile, err := os.Open(currentPath)
 			if err != nil {
 				return err
 			}
 
-			_, copyErr := io.Copy(
-				zipFile,
-				sourceFile,
-			)
+			_, copyErr := io.Copy(zipFile, sourceFile)
 
 			closeErr := sourceFile.Close()
 

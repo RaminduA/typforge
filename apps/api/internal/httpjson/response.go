@@ -25,22 +25,11 @@ func WriteData(w http.ResponseWriter, status int, data interface{}) {
 }
 
 func WriteError(w http.ResponseWriter, status int, code string, message string) {
-	WriteJSON(w, status, ErrorEnvelope{
-		Error: APIError{
-			Code:    code,
-			Message: message,
-		},
-	})
+	WriteJSON(w, status, ErrorEnvelope{Error: APIError{Code: code, Message: message}})
 }
 
 func WriteErrorDetails(w http.ResponseWriter, status int, code string, message string, details interface{}) {
-	WriteJSON(w, status, ErrorEnvelope{
-		Error: APIError{
-			Code:    code,
-			Message: message,
-			Details: details,
-		},
-	})
+	WriteJSON(w, status, ErrorEnvelope{Error: APIError{Code: code, Message: message, Details: details}})
 }
 
 func DecodeJSON(r *http.Request, target interface{}) error {

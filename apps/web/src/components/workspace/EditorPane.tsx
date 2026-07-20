@@ -17,6 +17,7 @@ import { FileText, LayoutGrid, X } from "lucide-react";
 import { useMemo } from "react";
 import { EDITOR_FONT_SIZE_PIXELS, type EditorFontSize } from "@/lib/editor-settings";
 import type { OpenEditorFile } from "@/types/editor";
+import { typstLanguageExtensions } from "@/lib/typst-language";
 
 interface EditorPaneProps {
   openFiles: OpenEditorFile[];
@@ -40,6 +41,7 @@ export function EditorPane({ openFiles, activePath, content, fontSize, toolsOpen
         highlightActiveLineGutter(),
         history(),
         highlightSelectionMatches(),
+        ...typstLanguageExtensions(),
         foldGutter(),
         EditorState.tabSize.of(2),
         EditorView.lineWrapping,

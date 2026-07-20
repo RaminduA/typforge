@@ -1,5 +1,5 @@
-import { TypforgeShell } from "@/components/workspace/TypforgeShell";
+import { ProjectDashboard } from "@/components/dashboard/ProjectDashboard";
 
 export default function Home() {
-  return <TypforgeShell />;
+  return <ProjectDashboard />;
 }

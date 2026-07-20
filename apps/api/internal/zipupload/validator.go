@@ -69,13 +69,6 @@ func ValidateEntry(name string, isDir bool, uncompressedSize uint64) (string, er
 	return cleaned, nil
 }
 
-func ValidateUploadedFile(
-	name string,
-	uncompressedSize uint64,
-) (string, error) {
-	return ValidateEntry(
-		name,
-		false,
-		uncompressedSize,
-	)
+func ValidateUploadedFile(name string, uncompressedSize uint64) (string, error) {
+	return ValidateEntry(name, false, uncompressedSize)
 }

@@ -7,10 +7,11 @@ import {
   useRef,
   useState
 } from "react";
+import { useRouter } from "next/navigation";
 
 import { SettingsModal } from "@/components/modals/SettingsModal";
 import { UploadZipModal } from "@/components/modals/UploadZipModal";
-import { api } from "@/lib/api";
+import { ApiRequestError, api } from "@/lib/api";
 import { findFirstTypFile, isSameOrChildPath, joinProjectPath } from "@/lib/file-tree";
 import {
   applyTheme,
@@ -83,7 +84,21 @@ function panelPercent(value: number) {
   return `${value}%`;
 }
 
-export function TypforgeShell() {
+function diagnosticsToLogText(result: CompileResult) {
+  return (
+    result.diagnostics
+      ?.map((diagnostic) => `${diagnostic.severity}: ${diagnostic.message}`)
+      .filter(Boolean).join("\n") ?? ""
+  );
+}
+
+interface TypforgeShellProps {
+  projectId: string;
+}
+
+export function TypforgeShell({ projectId }: TypforgeShellProps) {
+  const router = useRouter();
+
   type TextDialogState = 
     | { type: "create-file"; parentPath: string; }
     | {type: "create-folder"; parentPath: string;} 
@@ -201,7 +216,7 @@ export function TypforgeShell() {
     saveEditorSession(project.id, {openPaths,activePath: activePath && openPaths.includes(activePath) ? activePath : undefined});
   }, [activePath,editorSessionReady,openPathSignature,project]);
 
-  useEffect(() => {void bootstrap();}, []);
+  useEffect(() => { void bootstrap(projectId);}, [projectId]);
 
   useEffect(() => {
     if (!hasDirtyFiles) return;
@@ -263,14 +278,7 @@ export function TypforgeShell() {
     loadedTree: FileNode
   ) {
     const session = loadEditorSession(projectId);
-
-    /*
-     * No saved record means this is the first visit for this
-     * project, so preserve the existing first-file behavior.
-     *
-     * A saved record with openPaths: [] is different: it means
-     * the user intentionally closed every tab.
-     */
+    
     if (session === undefined) {
       const firstTyp = findFirstTypFile(loadedTree);
 
@@ -310,19 +318,37 @@ export function TypforgeShell() {
     setEditorSessionReady(true);
   }
 
-  async function bootstrap() {
-    const existing = await api.listProjects();
-    const selected = existing[0] ?? (await api.createProject("Untitled Project"));
+  async function bootstrap(targetProjectId: string) {
+    try {
+      setProject(undefined);
+      setTree(undefined);
+      setOpenFiles([]);
+      setActivePath(undefined);
+      setPdfHistory({ entries: [], index: -1 });
+      setLogs("");
+      setVersions([]);
+      setCompileStatus("idle");
+      setEditorSessionReady(false);
 
-    setProject(selected);
+      const selected = await api.getProject(targetProjectId);
 
-    const loadedTree = await api.getTree(selected.id);
-    setTree(loadedTree);
+      setProject(selected);
 
-    await restoreEditorTabs(selected.id,loadedTree);
+      const loadedTree = await api.getTree(selected.id);
+      setTree(loadedTree);
 
-    await refreshVersions(selected.id);
-    await compileProject(selected, false);
+      await restoreEditorTabs(selected.id, loadedTree);
+
+      await refreshVersions(selected.id);
+      await compileProject(selected, false);
+    } catch (error) {
+      setMessageDialog({
+        title: "Project not found",
+        message: error instanceof Error ? error.message : "The selected project could not be opened."
+      });
+
+      router.replace("/");
+    }
   }
 
   async function refreshTree(projectId = project?.id) {
@@ -416,7 +442,7 @@ export function TypforgeShell() {
     if (!pendingClosePath) return;
 
     closeEditorTab(pendingClosePath);
-}
+  }
 
   const compileProject = useCallback(async (targetProject = project,saveBeforeCompile = true): Promise<boolean> => {
       if (!targetProject || compileInFlightRef.current) return false;
@@ -438,12 +464,30 @@ export function TypforgeShell() {
 
         const result:CompileResult = await api.compile(targetProject.id, targetProject.entryFile);
 
-        if (result.logsUrl) {
-          const logResult = await api.getLogs(result.buildId);
-          setLogs(logResult.logs);
-        } else {
-          setLogs(result.diagnostics?.map((diagnostic) => `${diagnostic.severity}: ${diagnostic.message}`).join("\n") ?? "");
+        const fallbackLogs = diagnosticsToLogText(result);
+
+        let compilerLogs = fallbackLogs;
+
+        if (result.buildId) {
+          try {
+            const fetchedLogs = await api.getLogs(result.buildId);
+
+            console.log("[Typforge compile result]", result);
+            console.log("[Typforge fetched compiler logs]", fetchedLogs);
+
+            compilerLogs =
+              fetchedLogs ||
+              fallbackLogs ||
+              "Compile finished, but no compiler logs were returned.";
+          } catch (logError) {
+            compilerLogs =
+              logError instanceof Error
+                ? `Unable to fetch compiler logs for ${result.buildId}:\n${logError.message}\n\nFallback diagnostics:\n${fallbackLogs}`
+                : `Unable to fetch compiler logs for ${result.buildId}.\n\nFallback diagnostics:\n${fallbackLogs}`;
+          }
         }
+
+        setLogs(compilerLogs);
 
         if (result.ok) {
           setCompileStatus("compiled");
@@ -469,11 +513,17 @@ export function TypforgeShell() {
         }
 
         return true;
-      } catch (
-        error
-      ) {
+      } catch (error) {
         setCompileStatus("failed");
-        setLogs(error instanceof Error ? error.message : "Compile failed");
+
+        if (error instanceof ApiRequestError && error.logs) {
+          setLogs(error.logs);
+        } else if (error instanceof Error) {
+          setLogs(error.message);
+        } else {
+          setLogs("Compile failed");
+        }
+
         setToolsOpen(true);
         setActiveTool("logs");
 
@@ -761,13 +811,7 @@ export function TypforgeShell() {
 
       await api.deleteProject(project.id);
 
-      const remaining = await api.listProjects();
-
-      if (remaining.length === 0) {
-        await api.createProject("Untitled Project");
-      }
-
-      window.location.reload();
+      router.replace("/");
 
       return;
     }

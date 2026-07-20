@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/joho/godotenv"
+
 	"typforge/apps/api/internal/compiler"
 	httpapi "typforge/apps/api/internal/http"
 	"typforge/apps/api/internal/project"
@@ -36,10 +38,12 @@ func envInt(key string, fallback int) int {
 }
 
 func main() {
+	_ = godotenv.Load()
+
 	port := envString("PORT", "8080")
 	storageRoot := envString("STORAGE_ROOT", "../../storage")
 	typstImage := envString("TYPST_DOCKER_IMAGE", "ghcr.io/typst/typst:latest")
-	timeoutSeconds := envInt("COMPILE_TIMEOUT_SECONDS", 15)
+	timeoutSeconds := envInt("COMPILE_TIMEOUT_SECONDS", 60)
 
 	absoluteStorageRoot, err := filepath.Abs(storageRoot)
 	if err != nil {

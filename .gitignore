@@ -26,8 +26,12 @@ coverage.out
 # Typforge local storage
 storage/projects/*
 storage/builds/*
+storage/typst-package-cache/*
+storage/typst-fonts/*
 !storage/projects/.gitkeep
 !storage/builds/.gitkeep
+!storage/typst-package-cache/.gitkeep
+!storage/typst-fonts/.gitkeep
 
 # OS / editor
 .DS_Store

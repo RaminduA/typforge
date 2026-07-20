@@ -169,74 +169,30 @@ func (h *FilesHandler) UploadZip(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func (h *FilesHandler) RenameEntry(
-	w http.ResponseWriter,
-	r *http.Request,
-) {
-	projectID := chi.URLParam(
-		r,
-		"projectId",
-	)
+func (h *FilesHandler) RenameEntry(w http.ResponseWriter, r *http.Request) {
+	projectID := chi.URLParam(r, "projectId")
 
 	var request renameEntryRequest
 
-	if err := httpjson.DecodeJSON(
-		r,
-		&request,
-	); err != nil {
-		httpjson.WriteError(
-			w,
-			http.StatusBadRequest,
-			httpjson.ErrCodeBadRequest,
-			"Invalid JSON body",
-		)
+	if err := httpjson.DecodeJSON(r, &request); err != nil {
+		httpjson.WriteError(w, http.StatusBadRequest, httpjson.ErrCodeBadRequest, "Invalid JSON body")
 		return
 	}
 
-	newPath, err := h.Projects.RenameEntry(
-		r.Context(),
-		projectID,
-		request.Path,
-		request.NewName,
-	)
-
+	newPath, err := h.Projects.RenameEntry(r.Context(), projectID, request.Path, request.NewName)
 	if err != nil {
-		httpjson.WriteError(
-			w,
-			http.StatusBadRequest,
-			httpjson.ErrCodeBadRequest,
-			err.Error(),
-		)
+		httpjson.WriteError(w, http.StatusBadRequest, httpjson.ErrCodeBadRequest, err.Error())
 		return
 	}
 
-	httpjson.WriteData(
-		w,
-		http.StatusOK,
-		map[string]string{
-			"path": newPath,
-		},
-	)
+	httpjson.WriteData(w, http.StatusOK, map[string]string{"path": newPath})
 }
 
-func (h *FilesHandler) UploadEntries(
-	w http.ResponseWriter,
-	r *http.Request,
-) {
-	projectID := chi.URLParam(
-		r,
-		"projectId",
-	)
+func (h *FilesHandler) UploadEntries(w http.ResponseWriter, r *http.Request) {
+	projectID := chi.URLParam(r, "projectId")
 
-	if err := r.ParseMultipartForm(
-		64 << 20,
-	); err != nil {
-		httpjson.WriteError(
-			w,
-			http.StatusBadRequest,
-			httpjson.ErrCodeBadRequest,
-			"Invalid multipart upload",
-		)
+	if err := r.ParseMultipartForm(64 << 20); err != nil {
+		httpjson.WriteError(w, http.StatusBadRequest, httpjson.ErrCodeBadRequest, "Invalid multipart upload")
 		return
 	}
 
@@ -246,135 +202,62 @@ func (h *FilesHandler) UploadEntries(
 	paths := form.Value["paths"]
 
 	if len(files) == 0 {
-		httpjson.WriteError(
-			w,
-			http.StatusBadRequest,
-			httpjson.ErrCodeBadRequest,
-			"No files were uploaded",
-		)
+		httpjson.WriteError(w, http.StatusBadRequest, httpjson.ErrCodeBadRequest, "No files were uploaded")
 		return
 	}
 
 	if len(files) != len(paths) {
-		httpjson.WriteError(
-			w,
-			http.StatusBadRequest,
-			httpjson.ErrCodeBadRequest,
-			"Every uploaded file must have a destination path",
-		)
+		httpjson.WriteError(w, http.StatusBadRequest, httpjson.ErrCodeBadRequest, "Every uploaded file must have a destination path")
 		return
 	}
 
-	uploadedPaths := make(
-		[]string,
-		0,
-		len(files),
-	)
+	uploadedPaths := make([]string, 0, len(files))
 
 	for index, fileHeader := range files {
 		source, err := fileHeader.Open()
 
 		if err != nil {
-			httpjson.WriteError(
-				w,
-				http.StatusBadRequest,
-				httpjson.ErrCodeBadRequest,
-				err.Error(),
-			)
+			httpjson.WriteError(w, http.StatusBadRequest, httpjson.ErrCodeBadRequest, err.Error())
 			return
 		}
 
-		uploadErr := h.Projects.UploadFile(
-			r.Context(),
-			projectID,
-			paths[index],
-			source,
-			fileHeader.Size,
-		)
+		uploadErr := h.Projects.UploadFile(r.Context(), projectID, paths[index], source, fileHeader.Size)
 
 		closeErr := source.Close()
 
 		if uploadErr != nil {
-			httpjson.WriteError(
-				w,
-				http.StatusBadRequest,
-				httpjson.ErrCodeBadRequest,
-				uploadErr.Error(),
-			)
+			httpjson.WriteError(w, http.StatusBadRequest, httpjson.ErrCodeBadRequest, uploadErr.Error())
 			return
 		}
 
 		if closeErr != nil {
-			httpjson.WriteError(
-				w,
-				http.StatusInternalServerError,
-				httpjson.ErrCodeInternal,
-				closeErr.Error(),
-			)
+			httpjson.WriteError(w, http.StatusInternalServerError, httpjson.ErrCodeInternal, closeErr.Error())
 			return
 		}
 
-		uploadedPaths = append(
-			uploadedPaths,
-			paths[index],
-		)
+		uploadedPaths = append(uploadedPaths, paths[index])
 	}
 
-	httpjson.WriteData(
-		w,
-		http.StatusCreated,
-		map[string]interface{}{
-			"paths": uploadedPaths,
-		},
-	)
+	httpjson.WriteData(w, http.StatusCreated, map[string]interface{}{"paths": uploadedPaths})
 }
 
-func (h *FilesHandler) DownloadFile(
-	w http.ResponseWriter,
-	r *http.Request,
-) {
-	projectID := chi.URLParam(
-		r,
-		"projectId",
-	)
+func (h *FilesHandler) DownloadFile(w http.ResponseWriter, r *http.Request) {
+	projectID := chi.URLParam(r, "projectId")
 
 	filePath := r.URL.Query().Get("path")
 
-	target, err :=
-		h.Projects.GetProjectFilePath(
-			r.Context(),
-			projectID,
-			filePath,
-		)
+	target, err := h.Projects.GetProjectFilePath(r.Context(), projectID, filePath)
 
 	if err != nil {
-		httpjson.WriteError(
-			w,
-			http.StatusNotFound,
-			httpjson.ErrCodeNotFound,
-			err.Error(),
-		)
+		httpjson.WriteError(w, http.StatusNotFound, httpjson.ErrCodeNotFound, err.Error())
 		return
 	}
 
 	fileName := filepath.Base(target)
 
-	fileName = strings.ReplaceAll(
-		fileName,
-		`"`,
-		"_",
-	)
+	fileName = strings.ReplaceAll(fileName, `"`, "_")
 
-	w.Header().Set(
-		"Content-Disposition",
-		`attachment; filename="`+
-			fileName+
-			`"`,
-	)
+	w.Header().Set("Content-Disposition", `attachment; filename="`+fileName+`"`)
 
-	http.ServeFile(
-		w,
-		r,
-		target,
-	)
+	http.ServeFile(w, r, target)
 }
