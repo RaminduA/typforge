@@ -41,19 +41,20 @@ jobs:
         run: |
           set +e
 
-          echo "Looking for the latest oracle-terraform-state artifact..."
+          echo "Looking for latest completed Terraform state artifact..."
 
           RUN_IDS=$(gh run list \
             --workflow provision-oracle.yml \
             --branch main \
-            --limit 20 \
+            --status completed \
+            --limit 30 \
             --json databaseId \
             -q '.[].databaseId')
 
           RESTORED="false"
 
           for RUN_ID in $RUN_IDS; do
-            echo "Trying to restore Terraform state from run: $RUN_ID"
+            echo "Trying to restore Terraform state from completed run: $RUN_ID"
 
             gh run download "$RUN_ID" \
               --name oracle-terraform-state \
