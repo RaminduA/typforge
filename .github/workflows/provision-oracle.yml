@@ -3,8 +3,12 @@ name: Provision Oracle
 on:
   workflow_dispatch:
     inputs:
+      oci_region:
+        description: "OCI region identifier to try, e.g. ap-singapore-1"
+        required: false
+        default: "ap-singapore-1"
       availability_domain_index:
-        description: "Availability domain index to try. Start with 0, then 1, then 2."
+        description: "Availability domain index. Use 0 unless the region has more than one AD."
         required: false
         default: "0"
       instance_memory_in_gbs:
@@ -35,7 +39,8 @@ jobs:
       TF_VAR_tenancy_ocid: ${{ secrets.OCI_TENANCY_OCID }}
       TF_VAR_user_ocid: ${{ secrets.OCI_USER_OCID }}
       TF_VAR_fingerprint: ${{ secrets.OCI_FINGERPRINT }}
-      TF_VAR_region: ${{ secrets.OCI_REGION }}
+      TF_VAR_region: ${{ github.event_name == 'workflow_dispatch' && inputs.oci_region || secrets.OCI_REGION }}
+      TF_STATE_ARTIFACT_NAME: oracle-terraform-state-${{ github.event_name == 'workflow_dispatch' && inputs.oci_region || secrets.OCI_REGION }}
       TF_VAR_compartment_ocid: ${{ secrets.OCI_COMPARTMENT_OCID }}
       TF_VAR_ssh_public_key: ${{ secrets.ORACLE_SSH_PUBLIC_KEY }}
       TF_VAR_private_key_path: ${{ github.workspace }}/infra/oracle/oci_api_key.pem
@@ -52,13 +57,13 @@ jobs:
         run: |
           set +e
 
-          echo "Looking for latest oracle-terraform-state artifact via repository artifacts API..."
+          echo "Looking for latest ${TF_STATE_ARTIFACT_NAME} artifact via repository artifacts API..."
 
           rm -rf /tmp/typforge-terraform-state
           mkdir -p /tmp/typforge-terraform-state
 
           ARTIFACT_RUN_ID=$(gh api \
-            "/repos/${GITHUB_REPOSITORY}/actions/artifacts?name=oracle-terraform-state&per_page=100" \
+            "/repos/${GITHUB_REPOSITORY}/actions/artifacts?name=${TF_STATE_ARTIFACT_NAME}&per_page=100" \
             --jq '.artifacts[] | select(.expired == false) | .workflow_run.id' \
             | head -n 1)
 
@@ -118,7 +123,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: oracle-terraform-state
+          name: ${{ env.TF_STATE_ARTIFACT_NAME }}
           path: |
             infra/oracle/terraform.tfstate
             infra/oracle/terraform.tfstate.backup
