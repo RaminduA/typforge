@@ -41,18 +41,33 @@ jobs:
         run: |
           set +e
 
-          RUN_ID=$(gh run list \
+          echo "Looking for the latest oracle-terraform-state artifact..."
+
+          RUN_IDS=$(gh run list \
             --workflow provision-oracle.yml \
             --branch main \
-            --status success \
-            --limit 1 \
+            --limit 20 \
             --json databaseId \
-            -q '.[0].databaseId')
+            -q '.[].databaseId')
 
-          if [ -n "$RUN_ID" ] && [ "$RUN_ID" != "null" ]; then
+          RESTORED="false"
+
+          for RUN_ID in $RUN_IDS; do
+            echo "Trying to restore Terraform state from run: $RUN_ID"
+
             gh run download "$RUN_ID" \
               --name oracle-terraform-state \
               --dir .
+
+            if [ $? -eq 0 ]; then
+              echo "Terraform state restored from run: $RUN_ID"
+              RESTORED="true"
+              break
+            fi
+          done
+
+          if [ "$RESTORED" != "true" ]; then
+            echo "No previous Terraform state artifact found. Starting from empty state."
           fi
 
           set -e
