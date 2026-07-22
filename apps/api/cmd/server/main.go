@@ -1,11 +1,13 @@
 package main
 
 import (
+	"context"
 	"log"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/joho/godotenv"
@@ -40,9 +42,10 @@ func envInt(key string, fallback int) int {
 func main() {
 	_ = godotenv.Load()
 
+	ctx := context.Background()
+
 	port := envString("PORT", "8080")
-	storageRoot := envString("STORAGE_ROOT", "../../storage")
-	typstImage := envString("TYPST_DOCKER_IMAGE", "ghcr.io/typst/typst:latest")
+	storageRoot := envString("STORAGE_ROOT", "/tmp/typforge/storage")
 	timeoutSeconds := envInt("COMPILE_TIMEOUT_SECONDS", 60)
 
 	absoluteStorageRoot, err := filepath.Abs(storageRoot)
@@ -58,10 +61,44 @@ func main() {
 		log.Fatalf("failed to initialize filesystem store: %v", err)
 	}
 
-	typstCompiler := compiler.NewTypstDockerCompiler(
-		typstImage,
-		time.Duration(timeoutSeconds)*time.Second,
-	)
+	storageDriver := strings.ToLower(strings.TrimSpace(envString("STORAGE_DRIVER", "filesystem")))
+
+	if storageDriver == "s3" {
+		syncer, err := project.NewS3Syncer(
+			ctx,
+			envString("AWS_REGION", ""),
+			envString("S3_BUCKET", ""),
+			envString("S3_PREFIX", "typforge"),
+		)
+		if err != nil {
+			log.Fatalf("failed to initialize S3 syncer: %v", err)
+		}
+
+		store.SetSyncer(syncer)
+
+		if err := store.RestoreFromRemote(ctx); err != nil {
+			log.Fatalf("failed to restore storage from S3: %v", err)
+		}
+
+		log.Printf("S3 storage sync enabled for bucket=%s prefix=%s", syncer.Bucket, syncer.Prefix)
+	}
+
+	compilerMode := strings.ToLower(strings.TrimSpace(envString("TYPST_COMPILER", "docker")))
+
+	var typstCompiler compiler.Compiler
+
+	switch compilerMode {
+	case "binary", "direct", "typst":
+		typstCompiler = compiler.NewTypstBinaryCompiler(
+			envString("TYPST_BIN", "typst"),
+			time.Duration(timeoutSeconds)*time.Second,
+		)
+	default:
+		typstCompiler = compiler.NewTypstDockerCompiler(
+			envString("TYPST_DOCKER_IMAGE", "ghcr.io/typst/typst:latest"),
+			time.Duration(timeoutSeconds)*time.Second,
+		)
+	}
 
 	projectService := project.NewService(store, typstCompiler)
 	router := httpapi.NewRouter(projectService)
