@@ -2,6 +2,15 @@ name: Provision Oracle
 
 on:
   workflow_dispatch:
+    inputs:
+      availability_domain_index:
+        description: "Availability domain index to try. Start with 0, then 1, then 2."
+        required: false
+        default: "0"
+      instance_memory_in_gbs:
+        description: "Memory in GB for A1 Flex."
+        required: false
+        default: "2"
   push:
     branches:
       - main
@@ -30,6 +39,8 @@ jobs:
       TF_VAR_compartment_ocid: ${{ secrets.OCI_COMPARTMENT_OCID }}
       TF_VAR_ssh_public_key: ${{ secrets.ORACLE_SSH_PUBLIC_KEY }}
       TF_VAR_private_key_path: ${{ github.workspace }}/infra/oracle/oci_api_key.pem
+      TF_VAR_availability_domain_index: ${{ github.event_name == 'workflow_dispatch' && inputs.availability_domain_index || '0' }}
+      TF_VAR_instance_memory_in_gbs: ${{ github.event_name == 'workflow_dispatch' && inputs.instance_memory_in_gbs || '2' }}
 
     steps:
       - name: Checkout
