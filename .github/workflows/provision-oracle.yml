@@ -38,66 +38,47 @@ jobs:
       - name: Restore latest Terraform state artifact
         env:
           GH_TOKEN: ${{ github.token }}
-          CURRENT_RUN_ID: ${{ github.run_id }}
         run: |
           set +e
 
-          echo "Looking for previous oracle-terraform-state artifact..."
-          echo "Current run id: ${CURRENT_RUN_ID}"
+          echo "Looking for latest oracle-terraform-state artifact via repository artifacts API..."
 
-          RUN_IDS=$(gh run list \
-            --workflow provision-oracle.yml \
-            --branch main \
-            --limit 50 \
-            --json databaseId \
-            -q '.[].databaseId')
+          rm -rf /tmp/typforge-terraform-state
+          mkdir -p /tmp/typforge-terraform-state
 
-          RESTORED="false"
+          ARTIFACT_RUN_ID=$(gh api \
+            "/repos/${GITHUB_REPOSITORY}/actions/artifacts?name=oracle-terraform-state&per_page=100" \
+            --jq '.artifacts[] | select(.expired == false) | .workflow_run.id' \
+            | head -n 1)
 
-          for RUN_ID in $RUN_IDS; do
-            if [ "$RUN_ID" = "$CURRENT_RUN_ID" ]; then
-              echo "Skipping current run: $RUN_ID"
-              continue
-            fi
-
-            echo "Trying to restore Terraform state from run: $RUN_ID"
-
-            rm -rf /tmp/typforge-terraform-state
-            mkdir -p /tmp/typforge-terraform-state
-
-            gh run download "$RUN_ID" \
-              --name oracle-terraform-state \
-              --dir /tmp/typforge-terraform-state
-
-            if [ $? -eq 0 ]; then
-              if [ -f /tmp/typforge-terraform-state/terraform.tfstate ]; then
-                cp /tmp/typforge-terraform-state/terraform.tfstate ./terraform.tfstate
-                echo "Restored terraform.tfstate from run: $RUN_ID"
-                RESTORED="true"
-                break
-              fi
-
-              if [ -f /tmp/typforge-terraform-state/oracle/terraform.tfstate ]; then
-                cp /tmp/typforge-terraform-state/oracle/terraform.tfstate ./terraform.tfstate
-                echo "Restored oracle/terraform.tfstate from run: $RUN_ID"
-                RESTORED="true"
-                break
-              fi
-
-              FOUND_STATE=$(find /tmp/typforge-terraform-state -name terraform.tfstate -type f | head -n 1)
-
-              if [ -n "$FOUND_STATE" ]; then
-                cp "$FOUND_STATE" ./terraform.tfstate
-                echo "Restored Terraform state from: $FOUND_STATE"
-                RESTORED="true"
-                break
-              fi
-            fi
-          done
-
-          if [ "$RESTORED" != "true" ]; then
-            echo "No previous Terraform state artifact found. Starting from empty state."
+          if [ -z "$ARTIFACT_RUN_ID" ]; then
+            echo "No previous oracle-terraform-state artifact found. Starting from empty state."
+            set -e
+            exit 0
           fi
+
+          echo "Latest oracle-terraform-state artifact belongs to run: ${ARTIFACT_RUN_ID}"
+
+          gh run download "$ARTIFACT_RUN_ID" \
+            --name oracle-terraform-state \
+            --dir /tmp/typforge-terraform-state
+
+          if [ $? -ne 0 ]; then
+            echo "Could not download oracle-terraform-state artifact. Starting from empty state."
+            set -e
+            exit 0
+          fi
+
+          FOUND_STATE=$(find /tmp/typforge-terraform-state -name terraform.tfstate -type f | head -n 1)
+
+          if [ -z "$FOUND_STATE" ]; then
+            echo "Artifact downloaded, but terraform.tfstate was not found inside it. Starting from empty state."
+            set -e
+            exit 0
+          fi
+
+          cp "$FOUND_STATE" ./terraform.tfstate
+          echo "Restored Terraform state from: $FOUND_STATE"
 
           set -e
 
