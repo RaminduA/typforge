@@ -1,29 +1,24 @@
 name: typforge-dev
 
 services:
-  typst-runner:
-    build:
-      context: .
-      dockerfile: docker/typst-runner/Dockerfile
-    image: typforge/typst-runner:local
-    command: ["--version"]
-
   api:
     build:
       context: .
       dockerfile: apps/api/Dockerfile
     image: typforge/api:local
-    profiles:
-      - api-container
     ports:
       - "8080:8080"
     environment:
       PORT: "8080"
-      STORAGE_ROOT: /opt/typforge/storage
-      TYPST_DOCKER_IMAGE: typforge/typst-runner:local
-      TYPST_ALLOW_NETWORK: "true"
-      TYPST_PACKAGE_CACHE_DIR: /opt/typforge/storage/typst-package-cache
-      TYPST_FONT_DIR: /opt/typforge/storage/typst-fonts
+      STORAGE_DRIVER: filesystem
+      STORAGE_ROOT: /tmp/typforge/storage
+
+      TYPST_COMPILER: binary
+      TYPST_BIN: /usr/local/bin/typst
+      TYPST_PACKAGE_CACHE_DIR: /tmp/typforge/typst-package-cache
+      TYPST_FONT_DIR: /tmp/typforge/typst-fonts
+      COMPILE_TIMEOUT_SECONDS: "60"
+
+      CORS_ORIGIN: http://localhost:3000
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-      - ./storage:/opt/typforge/storage
+      - ./storage:/tmp/typforge/storage
