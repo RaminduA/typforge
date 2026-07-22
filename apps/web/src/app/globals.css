@@ -4632,3 +4632,221 @@ body > .pdf-menu[data-pdf-floating-menu] .pdf-menu-item:disabled {
   color: var(--text-muted) !important;
   flex: 0 0 auto !important;
 }
+
+/* ========================================
+   Dashboard tooltips
+   Uses the same floating tooltip renderer/style as PDF viewer
+======================================== */
+
+.dashboard-tooltip-button {
+  position: relative;
+}
+
+.dashboard-tooltip-button::after {
+  display: none !important;
+  content: none !important;
+}
+
+/* ========================================
+   Dashboard view modes
+======================================== */
+
+.dashboard-table-head-hidden {
+  display: none !important;
+}
+
+.dashboard-project-grid {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fill, minmax(176px, 1fr)) !important;
+  gap: 14px !important;
+  padding: 14px !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+}
+
+.dashboard-project-card {
+  position: relative !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  gap: 12px !important;
+  min-width: 0 !important;
+  min-height: 218px !important;
+  padding: 14px !important;
+  border: 1px solid color-mix(in srgb, var(--text-primary) 7%, transparent) !important;
+  border-radius: 16px !important;
+  background: transparent !important;
+  color: var(--text-primary) !important;
+  text-align: left !important;
+  cursor: pointer !important;
+  transition:
+    background 150ms ease,
+    border-color 150ms ease,
+    transform 120ms ease !important;
+}
+
+.dashboard-project-card:hover {
+  background: color-mix(in srgb, var(--text-primary) 5%, transparent) !important;
+  border-color: color-mix(in srgb, var(--text-primary) 12%, transparent) !important;
+}
+
+.dashboard-project-card:active {
+  transform: scale(0.998) !important;
+}
+
+.dashboard-project-card-more {
+  position: absolute !important;
+  top: 10px !important;
+  right: 10px !important;
+  z-index: 5 !important;
+  display: grid !important;
+  place-items: center !important;
+  width: 32px !important;
+  height: 32px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 999px !important;
+  background: color-mix(in srgb, var(--bg-panel) 86%, transparent) !important;
+  color: var(--text-muted) !important;
+  cursor: pointer !important;
+  opacity: 0 !important;
+  transition:
+    opacity 130ms ease,
+    background 130ms ease,
+    color 130ms ease !important;
+}
+
+.dashboard-project-card:hover .dashboard-project-card-more,
+.dashboard-project-card-more:focus-visible,
+.dashboard-project-card-more[aria-expanded="true"] {
+  opacity: 1 !important;
+}
+
+.dashboard-project-card-more:hover,
+.dashboard-project-card-more[aria-expanded="true"] {
+  background: var(--bg-panel-soft) !important;
+  color: var(--text-primary) !important;
+}
+
+.dashboard-project-card-preview {
+  display: grid !important;
+  place-items: center !important;
+  width: 100% !important;
+  min-height: 150px !important;
+  overflow: hidden !important;
+  border-radius: 12px !important;
+  background: color-mix(in srgb, var(--bg-panel) 78%, var(--bg-editor)) !important;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text-primary) 7%, transparent) !important;
+}
+
+.dashboard-project-card-preview .dashboard-project-preview-render-root,
+.dashboard-project-card-preview .dashboard-project-preview-document,
+.dashboard-project-card-preview .react-pdf__Document,
+.dashboard-project-card-preview .react-pdf__Page {
+  overflow: hidden !important;
+  background: #ffffff !important;
+}
+
+.dashboard-project-card-preview .react-pdf__Page {
+  border-radius: 3px !important;
+  box-shadow:
+    0 12px 32px rgba(0, 0, 0, 0.24),
+    inset 0 0 0 1px color-mix(in srgb, var(--text-primary) 10%, transparent) !important;
+}
+
+.dashboard-project-card-preview .react-pdf__Page__canvas,
+.dashboard-project-card-preview .dashboard-project-preview-image {
+  display: block !important;
+  width: 118px !important;
+  height: auto !important;
+}
+
+.dashboard-project-card-preview .dashboard-project-preview-image {
+  min-height: 166px !important;
+  object-fit: contain !important;
+  background: #ffffff !important;
+}
+
+.dashboard-project-card-preview .react-pdf__Page__textContent,
+.dashboard-project-card-preview .react-pdf__Page__annotations,
+.dashboard-project-card-preview .react-pdf__Page__annotationLayer {
+  display: none !important;
+}
+
+.dashboard-project-card-preview .dashboard-project-preview-fallback {
+  display: grid !important;
+  place-items: center !important;
+  width: 118px !important;
+  height: 166px !important;
+  border-radius: 3px !important;
+  background: #ffffff !important;
+  color: var(--text-muted) !important;
+  box-shadow:
+    0 12px 32px rgba(0, 0, 0, 0.24),
+    inset 0 0 0 1px color-mix(in srgb, var(--text-primary) 10%, transparent) !important;
+}
+
+.dashboard-project-card-footer {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto !important;
+  align-items: center !important;
+  gap: 10px !important;
+  min-width: 0 !important;
+}
+
+.dashboard-project-card-name {
+  min-width: 0 !important;
+  overflow: hidden !important;
+  color: var(--text-primary) !important;
+  font-size: 14px !important;
+  font-weight: 650 !important;
+  line-height: 1.25 !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+.dashboard-project-card-created {
+  color: var(--text-secondary) !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  line-height: 1 !important;
+  white-space: nowrap !important;
+}
+
+/* ========================================
+   High-resolution dashboard PDF thumbnails
+   Render large internally, display at fixed dimensions
+======================================== */
+
+.dashboard-project-preview-render-root,
+.dashboard-project-preview-document,
+.dashboard-project-preview .react-pdf__Document,
+.dashboard-project-preview .react-pdf__Page,
+.dashboard-project-card-preview .react-pdf__Document,
+.dashboard-project-card-preview .react-pdf__Page {
+  width: var(--dashboard-thumbnail-width) !important;
+  height: var(--dashboard-thumbnail-height) !important;
+  overflow: hidden !important;
+  background: #ffffff !important;
+}
+
+.dashboard-project-preview .react-pdf__Page__canvas,
+.dashboard-project-card-preview .react-pdf__Page__canvas,
+.dashboard-project-preview-image {
+  display: block !important;
+  width: var(--dashboard-thumbnail-width) !important;
+  height: auto !important;
+  image-rendering: auto !important;
+}
+
+.dashboard-project-preview-fallback {
+  width: var(--dashboard-thumbnail-width) !important;
+  height: var(--dashboard-thumbnail-height) !important;
+}
+
+.dashboard-project-preview-image {
+  object-fit: contain !important;
+  background: #ffffff !important;
+  user-select: none !important;
+  pointer-events: none !important;
+}
