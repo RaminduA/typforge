@@ -1,40 +1,67 @@
-# dependencies
+# Dependencies
 node_modules/
 apps/web/node_modules/
 
 # Next.js
 apps/web/.next/
 apps/web/out/
+apps/web/.vercel/
 
-# env
+# Build artifacts
+dist/
+build/
+coverage/
+
+# Environment files
 .env
 .env.*
 !.env.example
-!.env.local.example
 apps/api/.env
+apps/api/.env.*
+!apps/api/.env.example
 apps/web/.env.local
+apps/web/.env.*.local
+!apps/web/.env.local.example
 
 # Go
 *.exe
 *.test
-coverage.out
+*.out
+vendor/
 
-# generated locks / sums
-# package-lock.json should be committed after npm install
-# go.sum should be committed after go mod tidy
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraform.lock.hcl
 
-# Typforge local storage
+# Runtime Typforge storage
 storage/projects/*
 storage/builds/*
 storage/typst-package-cache/*
 storage/typst-fonts/*
+
+# Keep storage placeholders
 !storage/projects/.gitkeep
 !storage/builds/.gitkeep
 !storage/typst-package-cache/.gitkeep
 !storage/typst-fonts/.gitkeep
 
-# OS / editor
+# OS/editor
 .DS_Store
 Thumbs.db
 .vscode/
 .idea/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*

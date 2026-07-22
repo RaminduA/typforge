@@ -1,0 +1,86 @@
+name: Provision Oracle
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - "infra/oracle/**"
+      - ".github/workflows/provision-oracle.yml"
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  terraform:
+    name: Apply Oracle Terraform
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: infra/oracle
+
+    env:
+      TF_VAR_tenancy_ocid: ${{ secrets.OCI_TENANCY_OCID }}
+      TF_VAR_user_ocid: ${{ secrets.OCI_USER_OCID }}
+      TF_VAR_fingerprint: ${{ secrets.OCI_FINGERPRINT }}
+      TF_VAR_region: ${{ secrets.OCI_REGION }}
+      TF_VAR_compartment_ocid: ${{ secrets.OCI_COMPARTMENT_OCID }}
+      TF_VAR_ssh_public_key: ${{ secrets.ORACLE_SSH_PUBLIC_KEY }}
+      TF_VAR_private_key_path: ${{ github.workspace }}/infra/oracle/oci_api_key.pem
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Restore latest Terraform state artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set +e
+          RUN_ID=$(gh run list \
+            --workflow provision-oracle.yml \
+            --branch main \
+            --status success \
+            --limit 1 \
+            --json databaseId \
+            -q '.[0].databaseId')
+
+          if [ -n "$RUN_ID" ] && [ "$RUN_ID" != "null" ]; then
+            gh run download "$RUN_ID" \
+              --name oracle-terraform-state \
+              --dir .
+          fi
+
+          set -e
+
+      - name: Write OCI private key
+        run: |
+          printf '%s\n' "${{ secrets.OCI_PRIVATE_KEY }}" > oci_api_key.pem
+          chmod 600 oci_api_key.pem
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.9.8"
+
+      - name: Terraform init
+        run: terraform init -input=false
+
+      - name: Terraform validate
+        run: terraform validate
+
+      - name: Terraform apply
+        run: terraform apply -auto-approve -input=false
+
+      - name: Show outputs
+        run: terraform output
+
+      - name: Upload Terraform state artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: oracle-terraform-state
+          path: infra/oracle/terraform.tfstate
+          retention-days: 90
