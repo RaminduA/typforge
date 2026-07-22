@@ -76,7 +76,7 @@ jobs:
           echo "Latest oracle-terraform-state artifact belongs to run: ${ARTIFACT_RUN_ID}"
 
           gh run download "$ARTIFACT_RUN_ID" \
-            --name oracle-terraform-state \
+            --name "${TF_STATE_ARTIFACT_NAME}" \
             --dir /tmp/typforge-terraform-state
 
           if [ $? -ne 0 ]; then
