@@ -16,6 +16,7 @@ import (
 type FileSystemStore struct {
 	ProjectsRoot string
 	BuildsRoot   string
+	Syncer       *S3Syncer
 }
 
 func NewFileSystemStore(projectsRoot string, buildsRoot string) (*FileSystemStore, error) {
