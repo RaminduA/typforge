@@ -110,7 +110,7 @@ resource "oci_core_subnet" "typforge_public" {
 
 resource "oci_core_instance" "typforge" {
   compartment_id      = var.compartment_ocid
-  availability_domain = data.oci_identity_availability_domains.ads.availability_domains[0].name
+  availability_domain = data.oci_identity_availability_domains.ads.availability_domains[var.availability_domain_index].name
   display_name        = "typforge-oracle-free-vm"
   shape               = var.instance_shape
 

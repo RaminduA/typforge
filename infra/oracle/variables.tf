@@ -72,7 +72,7 @@ variable "instance_ocpus" {
 variable "instance_memory_in_gbs" {
   description = "Memory in GB for the flexible instance."
   type        = number
-  default     = 6
+  default     = 2
 }
 
 variable "boot_volume_size_gbs" {
@@ -91,4 +91,10 @@ variable "image_operating_system_version" {
   description = "OCI image operating system version."
   type        = string
   default     = "24.04"
+}
+
+variable "availability_domain_index" {
+  description = "Zero-based availability domain index to try when launching the VM."
+  type        = number
+  default     = 0
 }
