@@ -41,6 +41,7 @@ import type { Project } from "@/types/project";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 
 type DashboardSection = "all" | "yours" | "shared";
+type DashboardViewMode = "list" | "grid";
 type SortDirection = "desc" | "asc";
 type SortField = "name" | "createdAt";
 type ProjectMenuState = {
@@ -54,7 +55,16 @@ const PROJECT_MENU_WIDTH = 190;
 interface ProjectPdfThumbnailProps {
   pdfUrl?: string;
   cachedImageUrl?: string;
+  width?: number;
+  fallbackIconSize?: number;
   onThumbnailReady?: (imageUrl: string) => void;
+}
+
+interface DashboardTooltipState {
+  text: string;
+  top: number;
+  left: number;
+  placement: "above" | "below";
 }
 
 const ProjectPdfThumbnail = dynamic<ProjectPdfThumbnailProps>(
@@ -76,6 +86,10 @@ const CONTENT_PANEL_MAX_SIZE = 86.5;
 const SIDE_PANEL_DEFAULT_SIZE = 100 - CONTENT_PANEL_DEFAULT_SIZE;
 const SIDE_PANEL_MIN_SIZE = 100 - CONTENT_PANEL_MAX_SIZE;
 const SIDE_PANEL_MAX_SIZE = 100 - CONTENT_PANEL_MIN_SIZE;
+
+function clampNumber(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
+}
 
 function panelPercent(value: number) {
   return `${value}%`;
@@ -144,6 +158,7 @@ export function ProjectDashboard() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [activeSection, setActiveSection] = useState<DashboardSection>("yours");
   const [query, setQuery] = useState("");
+  const [viewMode, setViewMode] = useState<DashboardViewMode>("list");
   const [sortField, setSortField] = useState<SortField>("createdAt");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
   const [projectPreviewUrls, setProjectPreviewUrls] = useState<Record<string, string>>({});
@@ -162,6 +177,8 @@ export function ProjectDashboard() {
     project: Project;
   } | null>(null);
   const [renameDraft, setRenameDraft] = useState("");
+  const dashboardRootRef = useRef<HTMLElement>(null);
+  const [dashboardTooltip, setDashboardTooltip] = useState<DashboardTooltipState | null>(null);
 
   useEffect(() => {
     setEditorSettings(loadEditorSettings());
@@ -193,7 +210,7 @@ export function ProjectDashboard() {
   useEffect(() => { void loadProjects(); }, []);
 
   function projectThumbnailCacheKey(project: Project) {
-    return `typforge:dashboard-thumbnail:${project.id}:${project.updatedAt}`;
+    return `typforge:dashboard-thumbnail:${project.id}:v2:${project.updatedAt}`;
   }
 
   function removeOldProjectThumbnailCache(project: Project, activeKey: string) {
@@ -295,6 +312,114 @@ export function ProjectDashboard() {
       window.removeEventListener("scroll", closeProjectMenu, true);
     };
   }, [openProjectMenu]);
+
+  useEffect(() => {
+    const root = dashboardRootRef.current;
+
+    if (!root) {
+      return;
+    }
+
+    const rootElement: HTMLElement = root;
+
+    function showTooltipForElement(element: HTMLElement) {
+      const text = element.dataset.tooltip;
+
+      if (!text) {
+        return;
+      }
+
+      const bounds = element.getBoundingClientRect();
+      const estimatedWidth = Math.min(240, Math.max(90, text.length * 7.2));
+
+      const left = clampNumber(
+        bounds.left + bounds.width / 2,
+        estimatedWidth / 2 + 8,
+        window.innerWidth - estimatedWidth / 2 - 8
+      );
+
+      const hasSpaceBelow = bounds.bottom + 42 < window.innerHeight;
+
+      setDashboardTooltip({
+        text,
+        left,
+        top: hasSpaceBelow ? bounds.bottom + 8 : bounds.top - 8,
+        placement: hasSpaceBelow ? "below" : "above"
+      });
+    }
+
+    function handlePointerOver(event: PointerEvent) {
+      const target = event.target;
+
+      if (!(target instanceof Element)) {
+        return;
+      }
+
+      const tooltipElement = target.closest<HTMLElement>("[data-tooltip]");
+
+      if (
+        !tooltipElement ||
+        !rootElement.contains(tooltipElement) ||
+        tooltipElement.closest(".popup-menu") ||
+        tooltipElement.closest(".account-menu-panel")
+      ) {
+        return;
+      }
+
+      showTooltipForElement(tooltipElement);
+    }
+
+    function handlePointerOut(event: PointerEvent) {
+      const target = event.target;
+      const relatedTarget = event.relatedTarget;
+
+      if (!(target instanceof Element)) {
+        return;
+      }
+
+      const tooltipElement = target.closest<HTMLElement>("[data-tooltip]");
+
+      if (!tooltipElement) {
+        return;
+      }
+
+      if (relatedTarget instanceof Node && tooltipElement.contains(relatedTarget)) {
+        return;
+      }
+
+      setDashboardTooltip(null);
+    }
+
+    function handleFocusIn(event: FocusEvent) {
+      const target = event.target;
+
+      if (!(target instanceof Element)) {
+        return;
+      }
+
+      const tooltipElement = target.closest<HTMLElement>("[data-tooltip]");
+
+      if (tooltipElement && rootElement.contains(tooltipElement)) {
+        showTooltipForElement(tooltipElement);
+      }
+    }
+
+    function handleFocusOut() {
+      setDashboardTooltip(null);
+    }
+
+    rootElement.addEventListener("pointerover", handlePointerOver);
+    rootElement.addEventListener("pointerout", handlePointerOut);
+    rootElement.addEventListener("focusin", handleFocusIn);
+    rootElement.addEventListener("focusout", handleFocusOut);
+
+    return () => {
+      rootElement.removeEventListener("pointerover", handlePointerOver);
+      rootElement.removeEventListener("pointerout", handlePointerOut);
+      rootElement.removeEventListener("focusin", handleFocusIn);
+      rootElement.removeEventListener("focusout", handleFocusOut);
+    };
+  }, []);
 
   async function loadProjects() {
     try {
@@ -586,7 +711,10 @@ export function ProjectDashboard() {
 
   return (
     <>
-        <main className={settingsOpen ? "dashboard-page dashboard-page-blurred" : "dashboard-page"}>
+        <main
+            ref={dashboardRootRef}
+            className={settingsOpen ? "dashboard-page dashboard-page-blurred" : "dashboard-page"}
+        >
         <Group
             id="typforge-dashboard"
             orientation="horizontal"
@@ -647,9 +775,9 @@ export function ProjectDashboard() {
             >
                 <section className="dashboard-inner-box">
                     <header className="dashboard-header">
-                    <h1>{activeSectionLabel}</h1>
+                      <h1>{activeSectionLabel}</h1>
 
-                    <div className="dashboard-actions">
+                      <div className="dashboard-actions">
                         <label className="dashboard-search">
                         <Search size={18} />
                         <input
@@ -660,49 +788,68 @@ export function ProjectDashboard() {
                         </label>
 
                         <div className="dashboard-view-toggle" aria-label="View mode">
-                        <button
+                          <button
                             type="button"
-                            className="dashboard-view-button dashboard-view-button-active"
+                            className={
+                              viewMode === "list"
+                                ? "dashboard-view-button dashboard-view-button-active dashboard-tooltip-button"
+                                : "dashboard-view-button dashboard-tooltip-button"
+                            }
                             aria-label="List view"
-                        >
+                            aria-pressed={viewMode === "list"}
+                            data-tooltip="List view"
+                            onClick={() => setViewMode("list")}
+                          >
                             <List size={18} />
-                        </button>
+                          </button>
 
-                        <button
+                          <button
                             type="button"
-                            className="dashboard-view-button"
+                            className={
+                              viewMode === "grid"
+                                ? "dashboard-view-button dashboard-view-button-active dashboard-tooltip-button"
+                                : "dashboard-view-button dashboard-tooltip-button"
+                            }
                             aria-label="Grid view"
-                            title="Grid view will be added later"
-                        >
+                            aria-pressed={viewMode === "grid"}
+                            data-tooltip="Grid view"
+                            onClick={() => setViewMode("grid")}
+                          >
                             <Grid3X3 size={17} />
-                        </button>
+                          </button>
                         </div>
 
-                        <button
-                        type="button"
-                        className="dashboard-secondary-button"
-                        disabled
-                        title="Import from dashboard will be added later"
+                        <span
+                          className="dashboard-tooltip-button"
+                          data-tooltip="Import from dashboard will be added later"
+                          tabIndex={0}
                         >
-                        Import
-                        <ChevronDown size={16} />
-                        </button>
+                          <button
+                            type="button"
+                            className="dashboard-secondary-button"
+                            disabled
+                          >
+                            Import
+                            <ChevronDown size={16} />
+                          </button>
+                        </span>
 
                         <button
-                        type="button"
-                        className="dashboard-primary-button"
-                        onClick={createProject}
-                        disabled={creating}
+                          type="button"
+                          className="dashboard-primary-button dashboard-tooltip-button"
+                          data-tooltip="Create new project"
+                          onClick={createProject}
+                          disabled={creating}
                         >
-                        <Plus size={18} />
-                        {creating ? "Creating..." : "New"}
-                        <ChevronDown size={16} />
+                          <Plus size={18} />
+                          {creating ? "Creating..." : "New"}
+                          <ChevronDown size={16} />
                         </button>
-                    </div>
+                      </div>
                     </header>
 
                     <div className="dashboard-table">
-                    <div className="dashboard-table-head">
+                      <div className={viewMode === "list" ? "dashboard-table-head" : "dashboard-table-head dashboard-table-head-hidden"}>
                         <button
                             type="button"
                             className="dashboard-table-heading"
@@ -728,69 +875,133 @@ export function ProjectDashboard() {
                                 direction={sortDirection}
                             />
                         </button>
-                    </div>
+                      </div>
 
-                    {loading ? (
+                      {loading ? (
                         <div className="dashboard-empty-state">
-                        Loading projects...
+                          Loading projects...
                         </div>
-                    ) : error ? (
+                      ) : error ? (
                         <div className="dashboard-empty-state dashboard-error-state">
-                        {error}
+                          {error}
                         </div>
-                    ) : filteredProjects.length === 0 ? (
+                      ) : filteredProjects.length === 0 ? (
                         <div className="dashboard-empty-state">
-                        {activeSection === "shared"
+                          {activeSection === "shared"
                             ? "Shared projects will appear here later."
                             : query.trim()
-                            ? "No projects match your search."
-                            : "No projects yet. Create your first Typforge project."}
+                              ? "No projects match your search."
+                              : "No projects yet. Create your first Typforge project."}
                         </div>
-                    ) : (
+                      ) : viewMode === "list" ? (
                         <div className="dashboard-project-list">
-                        {filteredProjects.map((project) => (
-                          <div
-                            key={project.id}
-                            role="button"
-                            tabIndex={0}
-                            className="dashboard-project-row"
-                            onClick={() => openProject(project.id)}
-                            onKeyDown={(event) => handleProjectRowKeyDown(event, project.id)}
-                          >
-                            <span className="dashboard-project-preview" aria-hidden="true">
-                              <ProjectPdfThumbnail
-                                pdfUrl={projectPreviewUrls[project.id]}
-                                cachedImageUrl={projectThumbnailUrls[project.id]}
-                                onThumbnailReady={(imageUrl: string) => cacheProjectThumbnail(project, imageUrl)}
-                              />
-                            </span>
-
-                            <span className="dashboard-project-name">
-                              {project.name}
-                            </span>
-
-                            <span className="dashboard-project-created">
-                              {formatRelativeDate(project.createdAt)}
-                            </span>
-
-                            <button
-                              type="button"
-                              className="dashboard-project-more"
-                              aria-label={`More actions for ${project.name}`}
-                              aria-expanded={openProjectMenu?.projectId === project.id}
-                              onClick={(event) => openProjectActionsMenu(project, event)}
+                          {filteredProjects.map((project) => (
+                            <div
+                              key={project.id}
+                              role="button"
+                              tabIndex={0}
+                              className="dashboard-project-row"
+                              onClick={() => openProject(project.id)}
+                              onKeyDown={(event) => handleProjectRowKeyDown(event, project.id)}
                             >
-                              <MoreHorizontal size={17} />
-                            </button>
-                          </div>
-                        ))}
+                              <span className="dashboard-project-preview" aria-hidden="true">
+                                <ProjectPdfThumbnail
+                                  pdfUrl={projectPreviewUrls[project.id]}
+                                  cachedImageUrl={projectThumbnailUrls[project.id]}
+                                  width={30}
+                                  fallbackIconSize={18}
+                                  onThumbnailReady={(imageUrl: string) => cacheProjectThumbnail(project, imageUrl)}
+                                />
+                              </span>
+
+                              <span className="dashboard-project-name">
+                                {project.name}
+                              </span>
+
+                              <span className="dashboard-project-created">
+                                {formatRelativeDate(project.createdAt)}
+                              </span>
+
+                              <button
+                                type="button"
+                                className="dashboard-project-more"
+                                aria-label={`More actions for ${project.name}`}
+                                aria-expanded={openProjectMenu?.projectId === project.id}
+                                onClick={(event) => openProjectActionsMenu(project, event)}
+                              >
+                                <MoreHorizontal size={17} />
+                              </button>
+                            </div>
+                          ))}
                         </div>
-                    )}
+                      ) : (
+                        <div className="dashboard-project-grid">
+                          {filteredProjects.map((project) => (
+                            <div
+                              key={project.id}
+                              role="button"
+                              tabIndex={0}
+                              className="dashboard-project-card"
+                              onClick={() => openProject(project.id)}
+                              onKeyDown={(event) => handleProjectRowKeyDown(event, project.id)}
+                            >
+                              <button
+                                type="button"
+                                className="dashboard-project-card-more"
+                                aria-label={`More actions for ${project.name}`}
+                                aria-expanded={openProjectMenu?.projectId === project.id}
+                                onClick={(event) => openProjectActionsMenu(project, event)}
+                              >
+                                <MoreHorizontal size={17} />
+                              </button>
+
+                              <span className="dashboard-project-card-preview" aria-hidden="true">
+                                <ProjectPdfThumbnail
+                                  pdfUrl={projectPreviewUrls[project.id]}
+                                  cachedImageUrl={projectThumbnailUrls[project.id]}
+                                  width={118}
+                                  fallbackIconSize={28}
+                                  onThumbnailReady={(imageUrl: string) => cacheProjectThumbnail(project, imageUrl)}
+                                />
+                              </span>
+
+                              <span className="dashboard-project-card-footer">
+                                <span className="dashboard-project-card-name">
+                                  {project.name}
+                                </span>
+
+                                <span className="dashboard-project-card-created">
+                                  {formatRelativeDate(project.createdAt)}
+                                </span>
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                 </section>
             </Panel>
         </Group>
         </main>
+
+        {dashboardTooltip && typeof document !== "undefined"
+          ? createPortal(
+              <div
+                className={
+                  dashboardTooltip.placement === "above"
+                    ? "pdf-global-tooltip is-above"
+                    : "pdf-global-tooltip is-below"
+                }
+                style={{
+                  top: dashboardTooltip.top,
+                  left: dashboardTooltip.left
+                }}
+              >
+                {dashboardTooltip.text}
+              </div>,
+              document.body
+            )
+          : null}
 
         {renderProjectActionsMenu()}
         {renderProjectActionDialog()}
