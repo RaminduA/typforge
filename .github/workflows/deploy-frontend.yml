@@ -1,0 +1,105 @@
+name: Deploy Frontend
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - "apps/web/**"
+      - ".github/workflows/deploy-frontend.yml"
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  deploy:
+    name: Deploy web to Vercel
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download latest Oracle Terraform state
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p infra/oracle
+
+          RUN_ID=$(gh run list \
+            --workflow provision-oracle.yml \
+            --branch main \
+            --status success \
+            --limit 1 \
+            --json databaseId \
+            -q '.[0].databaseId')
+
+          if [ -z "$RUN_ID" ] || [ "$RUN_ID" = "null" ]; then
+            echo "No successful Oracle provisioning run found."
+            exit 1
+          fi
+
+          gh run download "$RUN_ID" \
+            --name oracle-terraform-state \
+            --dir infra/oracle
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.9.8"
+
+      - name: Read API URL
+        id: api
+        working-directory: infra/oracle
+        run: |
+          GENERATED_API_DOMAIN=$(terraform output -raw api_domain)
+
+          if [ -n "${{ secrets.API_DOMAIN }}" ]; then
+            API_DOMAIN="${{ secrets.API_DOMAIN }}"
+          else
+            API_DOMAIN="$GENERATED_API_DOMAIN"
+          fi
+
+          echo "api_base_url=https://${API_DOMAIN}/api/v1" >> "$GITHUB_OUTPUT"
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+
+      - name: Install dependencies
+        working-directory: apps/web
+        run: npm ci
+
+      - name: Install Vercel CLI
+        working-directory: apps/web
+        run: npm install --global vercel@latest
+
+      - name: Pull Vercel environment
+        working-directory: apps/web
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
+
+      - name: Build Vercel app
+        working-directory: apps/web
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          NEXT_PUBLIC_API_BASE_URL: ${{ steps.api.outputs.api_base_url }}
+        run: vercel build --prod --token="$VERCEL_TOKEN"
+
+      - name: Deploy Vercel app
+        working-directory: apps/web
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN"
