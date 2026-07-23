@@ -420,6 +420,12 @@ export function TypforgeShell({ projectId }: TypforgeShellProps) {
     await openFile(project.id, path);
   }
 
+  async function handleMobileOpenFile(path: string) {
+    await handleOpenFile(path);
+    setMobileTab("editor");
+    setMobileFilePickerOpen(false);
+  }
+
   function handleEditorChange(value: string) {
     if (!activePath) {
       return;
@@ -933,7 +939,7 @@ export function TypforgeShell({ projectId }: TypforgeShellProps) {
                 project={project}
                 tree={tree}
                 activePath={activePath}
-                onOpenFile={handleOpenFile}
+                onOpenFile={handleMobileOpenFile}
                 onCreateFile={handleCreateFile}
                 onCreateFolder={handleCreateFolder}
                 onUploadFiles={handleUploadFiles}
@@ -1114,10 +1120,7 @@ export function TypforgeShell({ projectId }: TypforgeShellProps) {
               project={project}
               tree={tree}
               activePath={activePath}
-              onOpenFile={(path) => {
-                void handleOpenFile(path);
-                setMobileFilePickerOpen(false);
-              }}
+              onOpenFile={handleMobileOpenFile}
               onCreateFile={(parentPath) => {
                 setMobileFilePickerOpen(false);
                 handleCreateFile(parentPath);

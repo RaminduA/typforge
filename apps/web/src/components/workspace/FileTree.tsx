@@ -35,6 +35,7 @@ import type {
 interface FileTreeProps {
   node?: FileNode;
   activePath?: string;
+  toggleFolderOnRowClick?: boolean;
 
   onOpenFile:
     (path: string) => void;
@@ -107,6 +108,7 @@ function collectFolderPaths(
 export function FileTree({
   node,
   activePath,
+  toggleFolderOnRowClick = false,
   onOpenFile,
   onCreateFile,
   onCreateFolder,
@@ -393,6 +395,9 @@ export function FileTree({
                 onToggleFolder={
                   toggleFolder
                 }
+                toggleFolderOnRowClick={
+                  toggleFolderOnRowClick
+                }
                 onOpenFile={
                   onOpenFile
                 }
@@ -424,6 +429,7 @@ interface TreeNodeProps {
   node: FileNode;
   depth: number;
   activePath?: string;
+  toggleFolderOnRowClick: boolean;
 
   expandedPaths:
     Set<string>;
@@ -452,6 +458,7 @@ function TreeNode({
   node,
   depth,
   activePath,
+  toggleFolderOnRowClick,
   expandedPaths,
   onToggleFolder,
   onOpenFile,
@@ -512,6 +519,11 @@ function TreeNode({
           paddingLeft:
             12 + indent
         }}
+        onClick={
+          toggleFolderOnRowClick
+            ? () => onToggleFolder(node.path)
+            : undefined
+        }
         onContextMenu={
           (event) =>
             onOpenContextMenu(
@@ -609,6 +621,9 @@ function TreeNode({
                   }
                   expandedPaths={
                     expandedPaths
+                  }
+                  toggleFolderOnRowClick={
+                    toggleFolderOnRowClick
                   }
                   onToggleFolder={
                     onToggleFolder

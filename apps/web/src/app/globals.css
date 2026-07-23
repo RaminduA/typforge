@@ -4912,11 +4912,11 @@ body > .pdf-menu[data-pdf-floating-menu] .pdf-menu-item:disabled {
     position: relative;
     z-index: 100;
     display: flex;
-    flex: 0 0 62px;
+    flex: 0 0 56px;
     align-items: center;
     justify-content: space-between;
     min-width: 0;
-    padding: max(8px, env(safe-area-inset-top)) 20px 8px;
+    padding: max(8px, env(safe-area-inset-top)) 18px 6px;
     border-bottom: 1px solid var(--border-soft);
     background: var(--bg-app);
   }
@@ -4928,12 +4928,12 @@ body > .pdf-menu[data-pdf-floating-menu] .pdf-menu-item:disabled {
     flex: 0 0 auto;
     width: 28px;
     height: 28px;
-    border: 1px solid color-mix(in srgb, var(--text-primary) 38%, transparent);
-    border-radius: 9px;
-    background: transparent;
-    color: var(--text-primary);
+    border: 0;
+    border-radius: 8px;
+    background: var(--accent);
+    color: #ffffff;
     font-size: 14px;
-    font-weight: 750 !important;
+    font-weight: 800 !important;
     line-height: 1;
   }
 
@@ -4946,10 +4946,10 @@ body > .pdf-menu[data-pdf-floating-menu] .pdf-menu-item:disabled {
   .mobile-dashboard-account-trigger {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
     max-width: 100%;
     min-width: 0;
-    height: 42px;
+    height: 38px;
     padding: 0;
     border: 0;
     background: transparent;
@@ -4959,20 +4959,20 @@ body > .pdf-menu[data-pdf-floating-menu] .pdf-menu-item:disabled {
   .mobile-dashboard-avatar {
     display: grid;
     place-items: center;
-    flex: 0 0 30px;
-    width: 30px;
-    height: 30px;
+    flex: 0 0 28px;
+    width: 28px;
+    height: 28px;
     border-radius: 999px;
     background: var(--accent);
     color: #ffffff;
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 650 !important;
   }
 
   .mobile-dashboard-account-name {
     min-width: 0;
     overflow: hidden;
-    font-size: 16px;
+    font-size: 14px;
     line-height: 1.2;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -4997,7 +4997,7 @@ body > .pdf-menu[data-pdf-floating-menu] .pdf-menu-item:disabled {
   .mobile-dashboard-account-menu,
   .mobile-dashboard-filter-menu,
   .mobile-dashboard-create-menu {
-    position: absolute;
+    position: fixed;
     z-index: 1000;
     overflow: hidden;
     border: 1px solid var(--app-popup-border);
@@ -5009,9 +5009,11 @@ body > .pdf-menu[data-pdf-floating-menu] .pdf-menu-item:disabled {
   }
 
   .mobile-dashboard-account-menu {
-    top: calc(100% + 8px);
-    right: 0;
-    min-width: 150px;
+    top: calc(max(8px, env(safe-area-inset-top)) + 52px);
+    left: 14px;
+    right: 14px;
+    min-width: 0;
+    width: auto;
     padding: 6px;
   }
 
@@ -5021,14 +5023,14 @@ body > .pdf-menu[data-pdf-floating-menu] .pdf-menu-item:disabled {
     display: flex;
     align-items: center;
     width: 100%;
-    min-height: 48px;
-    padding: 0 18px;
+    min-height: 44px;
+    padding: 0 16px;
     border: 0;
     border-radius: 11px;
     background: transparent;
     color: inherit;
     text-align: left;
-    font-size: 16px;
+    font-size: 14px;
     white-space: nowrap;
   }
 
@@ -5043,16 +5045,16 @@ body > .pdf-menu[data-pdf-floating-menu] .pdf-menu-item:disabled {
     position: relative;
     z-index: 90;
     flex: 0 0 auto;
-    padding: 10px 18px 0;
+    padding: 8px 18px 0;
     background: var(--bg-app);
   }
 
   .mobile-dashboard-controls {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 10px;
     min-width: 0;
-    height: 62px;
+    height: 54px;
   }
 
   .mobile-dashboard-filter-wrap,
@@ -5062,20 +5064,20 @@ body > .pdf-menu[data-pdf-floating-menu] .pdf-menu-item:disabled {
 
   .mobile-dashboard-filter-wrap {
     min-width: 0;
-    max-width: calc(100% - 112px);
+    flex: 1 1 auto;
   }
 
   .mobile-dashboard-filter-trigger {
     display: flex;
     align-items: center;
-    gap: 9px;
+    gap: 7px;
     min-width: 0;
-    height: 48px;
+    height: 42px;
     padding: 0 2px;
     border: 0;
     background: transparent;
     color: var(--text-primary);
-    font-size: clamp(21px, 6vw, 25px);
+    font-size: clamp(16px, 5.3vw, 20px);
     line-height: 1;
   }
 
@@ -5101,8 +5103,8 @@ body > .pdf-menu[data-pdf-floating-menu] .pdf-menu-item:disabled {
   }
 
   .mobile-dashboard-icon-button {
-    width: 44px;
-    height: 44px;
+    width: 38px;
+    height: 38px;
     border-radius: 999px;
     background: transparent;
   }
@@ -5111,9 +5113,19 @@ body > .pdf-menu[data-pdf-floating-menu] .pdf-menu-item:disabled {
     background: var(--bg-panel-soft);
   }
 
+  .mobile-dashboard-icon-button svg {
+    width: 22px;
+    height: 22px;
+  }
+
+  .mobile-dashboard-create-button svg {
+    width: 24px;
+    height: 24px;
+  }
+
   .mobile-dashboard-create-button {
-    width: 54px;
-    height: 54px;
+    width: 48px;
+    height: 48px;
     border-radius: 999px;
     background: var(--text-primary);
     color: var(--bg-app);
@@ -5124,9 +5136,10 @@ body > .pdf-menu[data-pdf-floating-menu] .pdf-menu-item:disabled {
   }
 
   .mobile-dashboard-filter-menu {
-    top: calc(100% + 8px);
-    left: 0;
-    width: min(330px, calc(100vw - 36px));
+    top: calc(max(8px, env(safe-area-inset-top)) + 92px);
+    left: 14px;
+    right: 14px;
+    width: auto;
     padding: 8px;
   }
 
@@ -5140,9 +5153,10 @@ body > .pdf-menu[data-pdf-floating-menu] .pdf-menu-item:disabled {
   }
 
   .mobile-dashboard-create-menu {
-    top: calc(100% + 8px);
-    right: 0;
-    width: min(250px, calc(100vw - 36px));
+    top: calc(max(8px, env(safe-area-inset-top)) + 92px);
+    left: 14px;
+    right: 14px;
+    width: auto;
     padding: 8px;
   }
 
@@ -5164,11 +5178,11 @@ body > .pdf-menu[data-pdf-floating-menu] .pdf-menu-item:disabled {
   .mobile-dashboard-search {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 10px;
     width: 100%;
-    height: 48px;
-    margin: 2px 0 12px;
-    padding: 0 16px;
+    height: 42px;
+    margin: 0 0 10px;
+    padding: 0 14px;
     border: 1px solid color-mix(in srgb, var(--text-primary) 26%, var(--border));
     border-radius: 999px;
     background: var(--bg-panel-soft);
@@ -5189,7 +5203,7 @@ body > .pdf-menu[data-pdf-floating-menu] .pdf-menu-item:disabled {
     outline: none;
     background: transparent;
     color: var(--text-primary);
-    font-size: 16px;
+    font-size: 14px;
   }
 
   .mobile-dashboard-search input::placeholder {
@@ -5216,13 +5230,13 @@ body > .pdf-menu[data-pdf-floating-menu] .pdf-menu-item:disabled {
 
   .mobile-dashboard-project-row {
     display: grid;
-    grid-template-columns: 48px minmax(0, 1fr) 50px 34px;
+    grid-template-columns: 38px minmax(0, 1fr) 44px 30px;
     align-items: center;
-    gap: 12px;
+    gap: 10px;
     width: 100%;
     min-width: 0;
-    min-height: 62px;
-    padding: 6px 17px 6px 38px;
+    min-height: 56px;
+    padding: 5px 15px 5px 24px;
     border: 0;
     border-bottom: 1px solid var(--border-soft);
     background: transparent;
@@ -5238,8 +5252,8 @@ body > .pdf-menu[data-pdf-floating-menu] .pdf-menu-item:disabled {
   .mobile-dashboard-project-row .dashboard-project-preview {
     display: grid;
     place-items: center;
-    width: 32px !important;
-    height: 48px !important;
+    width: 26px !important;
+    height: 40px !important;
     overflow: hidden;
     border-radius: 0 !important;
     background: #ffffff !important;
@@ -5251,15 +5265,15 @@ body > .pdf-menu[data-pdf-floating-menu] .pdf-menu-item:disabled {
   .mobile-dashboard-project-row .dashboard-project-preview .react-pdf__Page,
   .mobile-dashboard-project-row .dashboard-project-preview-image,
   .mobile-dashboard-project-row .dashboard-project-preview-fallback {
-    width: 32px !important;
-    height: 48px !important;
+    width: 26px !important;
+    height: 40px !important;
   }
 
   .mobile-dashboard-project-name {
     min-width: 0;
     overflow: hidden;
     color: var(--text-primary);
-    font-size: 16px;
+    font-size: 14px;
     font-weight: 540 !important;
     line-height: 1.25;
     text-overflow: ellipsis;
@@ -5268,7 +5282,7 @@ body > .pdf-menu[data-pdf-floating-menu] .pdf-menu-item:disabled {
 
   .mobile-dashboard-project-created {
     color: var(--text-secondary);
-    font-size: 14px;
+    font-size: 13px;
     text-align: right;
     white-space: nowrap;
   }
@@ -5276,8 +5290,8 @@ body > .pdf-menu[data-pdf-floating-menu] .pdf-menu-item:disabled {
   .mobile-dashboard-project-row .dashboard-project-more {
     display: grid;
     place-items: center;
-    width: 34px;
-    height: 34px;
+    width: 30px;
+    height: 30px;
     padding: 0;
     border: 0;
     border-radius: 999px;
@@ -5321,11 +5335,11 @@ body > .pdf-menu[data-pdf-floating-menu] .pdf-menu-item:disabled {
     position: relative;
     z-index: 40;
     display: grid;
-    grid-template-columns: 70px minmax(0, 1fr) 70px;
+    grid-template-columns: 52px minmax(0, 1fr) 74px;
     align-items: center;
-    flex: 0 0 68px;
+    flex: 0 0 58px;
     min-width: 0;
-    padding: max(8px, env(safe-area-inset-top)) 18px 6px;
+    padding: max(8px, env(safe-area-inset-top)) 16px 4px;
     background: var(--bg-app);
   }
 
@@ -5339,7 +5353,7 @@ body > .pdf-menu[data-pdf-floating-menu] .pdf-menu-item:disabled {
     margin: 0;
     overflow: hidden;
     color: var(--text-primary);
-    font-size: 18px;
+    font-size: 15px;
     font-weight: 600;
     line-height: 1.2;
     text-align: center;
@@ -5349,24 +5363,26 @@ body > .pdf-menu[data-pdf-floating-menu] .pdf-menu-item:disabled {
 
   .mobile-workspace-share {
     justify-self: end;
-    min-width: 66px;
-    height: 40px;
-    padding: 0 14px;
+    min-width: 60px;
+    height: 36px;
+    padding: 0 12px;
     border: 0;
     border-radius: 999px;
     background: var(--text-primary);
     color: var(--bg-app);
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 500;
   }
 
   .mobile-workspace-tabs {
     position: relative;
     z-index: 35;
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    flex: 0 0 66px;
+    display: flex;
+    justify-content: center;
+    gap: 0;
+    flex: 0 0 58px;
     align-items: stretch;
+    padding: 0 14px;
     border-bottom: 1px solid var(--border);
     background: var(--bg-app);
   }
@@ -5375,28 +5391,34 @@ body > .pdf-menu[data-pdf-floating-menu] .pdf-menu-item:disabled {
     position: relative;
     display: grid;
     place-items: center;
+    flex: 0 1 108px;
     min-width: 0;
-    padding: 4px 0 0;
+    padding: 2px 0 0;
     border: 0;
     background: transparent;
     color: var(--text-primary);
-    font-size: 16px;
-    font-weight: 520;
+    font-size: 13px;
+    font-weight: 560;
   }
 
   .mobile-workspace-tab::after {
     content: "";
     position: absolute;
-    right: 12%;
+    right: 0;
     bottom: -1px;
-    left: 12%;
+    left: 0;
     height: 2px;
     border-radius: 999px 999px 0 0;
-    background: transparent;
+    background: var(--text-primary);
+    transform: scaleX(0);
+    transform-origin: center;
+    opacity: 0;
+    transition: transform 180ms ease, opacity 180ms ease;
   }
 
   .mobile-workspace-tab.active::after {
-    background: var(--text-primary);
+    opacity: 1;
+    transform: scaleX(1);
   }
 
   .mobile-workspace-body {
@@ -5433,10 +5455,10 @@ body > .pdf-menu[data-pdf-floating-menu] .pdf-menu-item:disabled {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    flex: 0 0 66px;
-    padding: 10px 28px 4px;
+    flex: 0 0 58px;
+    padding: 8px 28px 2px;
     color: var(--text-secondary);
-    font-size: 14px;
+    font-size: 13px;
   }
 
   .mobile-file-browser-add,
@@ -5474,7 +5496,7 @@ body > .pdf-menu[data-pdf-floating-menu] .pdf-menu-item:disabled {
 
   .mobile-file-browser .file-tree {
     padding: 0;
-    font-size: 16px;
+    font-size: 14px;
   }
 
   .mobile-file-browser .file-children {
@@ -5483,10 +5505,11 @@ body > .pdf-menu[data-pdf-floating-menu] .pdf-menu-item:disabled {
 
   .mobile-file-browser .file-tree-row,
   .mobile-file-browser .file-row {
-    min-height: 44px;
-    padding: 5px 12px;
+    min-height: 40px;
+    padding: 4px 10px;
     border-radius: 10px;
     color: var(--text-secondary);
+    font-size: 14px;
   }
 
   .mobile-file-browser .file-tree-row.active,
@@ -5500,8 +5523,8 @@ body > .pdf-menu[data-pdf-floating-menu] .pdf-menu-item:disabled {
   }
 
   .mobile-file-browser .tree-icon-button {
-    width: 30px;
-    height: 30px;
+    width: 28px;
+    height: 28px;
   }
 
   .mobile-file-browser-account {
@@ -5520,54 +5543,61 @@ body > .pdf-menu[data-pdf-floating-menu] .pdf-menu-item:disabled {
 
   .mobile-file-browser-account .account-profile-trigger {
     width: 100%;
-    height: 48px;
+    height: 44px;
     padding-left: 0;
     border-radius: 12px;
   }
 
   .mobile-file-browser-account .account-profile-avatar {
-    width: 34px;
-    height: 34px;
-    font-size: 15px;
+    width: 30px;
+    height: 30px;
+    font-size: 13px;
   }
 
   .mobile-file-browser-account .account-profile-name {
-    font-size: 16px;
+    font-size: 14px;
   }
 
   /* Larger touch targets for mobile popup menus. */
   .popup-menu.is-positioned {
-    min-width: min(250px, calc(100vw - 28px)) !important;
+    position: fixed !important;
+    right: 14px !important;
+    bottom: max(14px, env(safe-area-inset-bottom)) !important;
+    left: 14px !important;
+    min-width: 0 !important;
     max-width: calc(100vw - 28px) !important;
+    width: auto !important;
     padding: 8px !important;
     border-radius: 18px !important;
   }
 
   .popup-menu-item {
-    min-height: 47px !important;
-    height: 47px !important;
+    min-height: 43px !important;
+    height: 43px !important;
     padding: 0 12px !important;
     border-radius: 11px !important;
-    font-size: 16px !important;
+    font-size: 14px !important;
   }
 
   .account-menu-panel {
-    width: min(368px, calc(100vw - 36px)) !important;
-    max-width: calc(100vw - 36px) !important;
+    width: calc(100vw - 28px) !important;
+    max-width: calc(100vw - 28px) !important;
+    left: 14px !important;
+    right: 14px !important;
     padding: 7px !important;
     border-radius: 18px !important;
   }
 
   .account-menu-row {
-    min-height: 48px !important;
-    height: 48px !important;
+    min-height: 42px !important;
+    height: 42px !important;
     padding: 0 12px !important;
     border-radius: 10px !important;
-    font-size: 16px !important;
+    font-size: 14px !important;
   }
 
   .account-menu-row-label {
-    font-size: 16px !important;
+    font-size: 14px !important;
   }
 
   /* ------------------------------
@@ -5630,12 +5660,12 @@ body > .pdf-menu[data-pdf-floating-menu] .pdf-menu-item:disabled {
     position: relative;
     z-index: 20;
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 56px;
+    grid-template-columns: minmax(0, 1fr) 48px;
     align-items: center;
     gap: 8px;
     flex: 0 0 auto;
-    min-height: 74px;
-    padding: 10px 14px max(10px, env(safe-area-inset-bottom));
+    min-height: 66px;
+    padding: 8px 14px max(8px, env(safe-area-inset-bottom));
     border-top: 1px solid var(--border-soft);
     background: var(--bg-app);
   }
@@ -5644,16 +5674,16 @@ body > .pdf-menu[data-pdf-floating-menu] .pdf-menu-item:disabled {
   .mobile-editor-more-button {
     display: flex;
     align-items: center;
-    height: 52px;
+    height: 46px;
     border: 0;
     background: color-mix(in srgb, var(--bg-panel) 82%, #000000 18%);
     color: var(--text-primary);
   }
 
   .mobile-editor-file-button {
-    gap: 11px;
+    gap: 8px;
     min-width: 0;
-    padding: 0 17px;
+    padding: 0 14px;
     border-radius: 999px;
     text-align: left;
   }
@@ -5661,7 +5691,7 @@ body > .pdf-menu[data-pdf-floating-menu] .pdf-menu-item:disabled {
   .mobile-editor-file-button > span:not(.mobile-editor-dirty) {
     min-width: 0;
     overflow: hidden;
-    font-size: 16px;
+    font-size: 14px;
     font-weight: 570;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -5669,18 +5699,19 @@ body > .pdf-menu[data-pdf-floating-menu] .pdf-menu-item:disabled {
 
   .mobile-editor-file-button > svg:last-child {
     flex: 0 0 auto;
-    margin-left: auto;
+    margin-left: 2px;
   }
 
   .mobile-editor-dirty {
     flex: 0 0 auto;
+    margin-left: auto;
     color: var(--warning);
-    font-size: 10px;
+    font-size: 9px;
   }
 
   .mobile-editor-more-button {
     justify-content: center;
-    width: 56px;
+    width: 48px;
     padding: 0;
     border-radius: 999px;
   }
@@ -5688,6 +5719,21 @@ body > .pdf-menu[data-pdf-floating-menu] .pdf-menu-item:disabled {
   .mobile-editor-file-button:disabled,
   .mobile-editor-more-button:disabled {
     opacity: 0.55;
+  }
+
+  .mobile-editor-file-button > svg:first-child {
+    width: 16px;
+    height: 16px;
+  }
+
+  .mobile-editor-file-button > svg:last-child {
+    width: 16px;
+    height: 16px;
+  }
+
+  .mobile-editor-more-button svg {
+    width: 20px;
+    height: 20px;
   }
 
   /* ------------------------------
@@ -5718,8 +5764,8 @@ body > .pdf-menu[data-pdf-floating-menu] .pdf-menu-item:disabled {
   }
 
   .mobile-file-picker-sheet {
-    height: min(63dvh, 650px);
-    min-height: 330px;
+    height: min(50dvh, 440px);
+    min-height: 280px;
   }
 
   .mobile-file-browser-sheet {
@@ -5732,18 +5778,18 @@ body > .pdf-menu[data-pdf-floating-menu] .pdf-menu-item:disabled {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    flex: 0 0 64px;
-    padding: 8px 18px;
+    flex: 0 0 56px;
+    padding: 8px 16px;
     border-bottom: 1px solid var(--account-menu-divider);
   }
 
   .mobile-file-sheet-current {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 9px;
     min-width: 0;
     color: var(--account-menu-text);
-    font-size: 16px;
+    font-size: 14px;
     font-weight: 600;
   }
 
@@ -5760,7 +5806,7 @@ body > .pdf-menu[data-pdf-floating-menu] .pdf-menu-item:disabled {
   }
 
   .mobile-file-browser-sheet .mobile-file-browser-tree {
-    padding: 0 22px 20px;
+    padding: 0 18px 16px;
   }
 
   .mobile-file-actions-sheet {
@@ -5771,14 +5817,14 @@ body > .pdf-menu[data-pdf-floating-menu] .pdf-menu-item:disabled {
 
   .mobile-file-actions-sheet button {
     width: 100%;
-    min-height: 56px;
+    min-height: 48px;
     padding: 0 12px;
     border: 0;
     border-radius: 12px;
     background: transparent;
     color: var(--account-menu-text);
     text-align: left;
-    font-size: 16px;
+    font-size: 14px;
     font-weight: 520;
   }
 
@@ -5811,7 +5857,7 @@ body > .pdf-menu[data-pdf-floating-menu] .pdf-menu-item:disabled {
     overflow: hidden !important;
     border: 0 !important;
     border-radius: 0 !important;
-    background: var(--pdf-workspace-bg, #f4f4f4) !important;
+    background: #ececec !important;
   }
 
   .pdf-viewer-mobile {
@@ -5829,8 +5875,8 @@ body > .pdf-menu[data-pdf-floating-menu] .pdf-menu-item:disabled {
     min-height: 0;
     overflow-x: hidden !important;
     overflow-y: auto !important;
-    padding: 0 5px 24px !important;
-    background: var(--pdf-workspace-bg) !important;
+    padding: 0 5px 18px !important;
+    background: #ececec !important;
     scrollbar-width: none;
     scrollbar-gutter: auto;
     touch-action: pan-y;
@@ -5863,11 +5909,12 @@ body > .pdf-menu[data-pdf-floating-menu] .pdf-menu-item:disabled {
     position: relative;
     z-index: 20;
     display: flex;
-    align-items: center;
+    align-items: stretch;
     justify-content: space-between;
+    gap: 0;
     flex: 0 0 auto;
-    min-height: 54px;
-    padding: 4px 10px max(4px, env(safe-area-inset-bottom));
+    min-height: 48px;
+    padding: 0 0 env(safe-area-inset-bottom);
     border-top: 1px solid var(--pdf-toolbar-border);
     background: var(--pdf-toolbar-bg);
     color: var(--pdf-toolbar-text);
@@ -5878,19 +5925,22 @@ body > .pdf-menu[data-pdf-floating-menu] .pdf-menu-item:disabled {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-height: 42px;
+    min-height: 48px;
     border: 0;
-    border-radius: 10px;
+    border-radius: 0;
     background: transparent;
     color: var(--pdf-toolbar-text);
     text-decoration: none;
   }
 
   .pdf-mobile-compile-button {
-    gap: 9px;
+    flex: 1 1 auto;
+    justify-content: flex-start;
+    gap: 7px;
     min-width: 0;
-    padding: 0 4px;
-    font-size: 16px;
+    height: 48px;
+    padding: 0 10px;
+    font-size: 14px;
     font-weight: 500;
   }
 
@@ -5898,7 +5948,7 @@ body > .pdf-menu[data-pdf-floating-menu] .pdf-menu-item:disabled {
   .pdf-mobile-compile-button:active:not(:disabled),
   .pdf-mobile-download-button:hover:not(:disabled),
   .pdf-mobile-download-button:active:not(:disabled) {
-    background: var(--pdf-control-hover);
+    background: transparent;
   }
 
   .pdf-mobile-compile-button:disabled,
@@ -5916,9 +5966,17 @@ body > .pdf-menu[data-pdf-floating-menu] .pdf-menu-item:disabled {
   }
 
   .pdf-mobile-download-button {
-    flex: 0 0 44px;
-    width: 44px;
+    flex: 0 0 48px;
+    width: 48px;
+    height: 48px;
+    margin-left: auto;
     padding: 0;
+  }
+
+  .pdf-mobile-compile-button svg,
+  .pdf-mobile-download-button svg {
+    width: 17px;
+    height: 17px;
   }
 
   @keyframes mobile-sheet-enter {
@@ -5965,13 +6023,13 @@ body > .pdf-menu[data-pdf-floating-menu] .pdf-menu-item:disabled {
   }
 
   .mobile-dashboard-filter-wrap {
-    max-width: calc(100% - 104px);
+    max-width: none;
   }
 
   .mobile-dashboard-project-row {
-    grid-template-columns: 42px minmax(0, 1fr) 42px 32px;
-    gap: 9px;
-    padding-left: 18px;
+    grid-template-columns: 38px minmax(0, 1fr) 42px 30px;
+    gap: 8px;
+    padding-left: 16px;
   }
 
   .mobile-workspace-header {

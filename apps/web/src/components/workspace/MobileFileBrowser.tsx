@@ -125,6 +125,14 @@ export function MobileFileBrowser({
     }
   }
 
+  function handleOpenFile(path: string) {
+    onOpenFile(path);
+
+    if (variant === "sheet") {
+      onCloseSheet?.();
+    }
+  }
+
   const rootMenuItems: PopupMenuItem[] = [
     {
       id: "mobile-root-create-file",
@@ -196,7 +204,8 @@ export function MobileFileBrowser({
         <FileTree
           node={tree}
           activePath={activePath}
-          onOpenFile={onOpenFile}
+          toggleFolderOnRowClick
+          onOpenFile={handleOpenFile}
           onCreateFile={onCreateFile}
           onCreateFolder={onCreateFolder}
           onRequestUploadFile={requestFileUpload}
