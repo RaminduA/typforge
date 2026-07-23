@@ -1,7 +1,7 @@
 import type { CompileResult } from "@/types/build";
 import type { FileNode, Project, VersionSnapshot } from "@/types/project";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8080/api/v1";
+const API_BASE_URL = (process.env.NEXT_PUBLIC_API_BASE_URL?.trim() || "http://localhost:8080/api/v1").replace(/\/$/, "");
 
 type Envelope<T> = {
   data: T;
