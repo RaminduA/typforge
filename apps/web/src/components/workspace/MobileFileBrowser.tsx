@@ -7,6 +7,7 @@ import {
   FileUp,
   FolderPlus,
   FolderUp,
+  MoreHorizontal,
   Plus
 } from "lucide-react";
 import {
@@ -38,6 +39,7 @@ interface MobileFileBrowserProps {
   onDownloadFile: (path: string) => void;
   onOpenSettings?: () => void;
   onCloseSheet?: () => void;
+  onOpenFileActions?: () => void;
 }
 
 interface MenuPosition {
@@ -77,7 +79,8 @@ export function MobileFileBrowser({
   onDeleteEntry,
   onDownloadFile,
   onOpenSettings,
-  onCloseSheet
+  onCloseSheet,
+  onOpenFileActions
 }: MobileFileBrowserProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
@@ -171,18 +174,28 @@ export function MobileFileBrowser({
     >
       {variant === "sheet" ? (
         <header className="mobile-file-sheet-heading">
-          <div className="mobile-file-sheet-current">
-            <FileText size={18} />
-            <span>{getFileName(activePath)}</span>
-          </div>
-
           <button
             type="button"
-            className="mobile-file-sheet-close"
+            className="mobile-file-sheet-current"
             aria-label="Close file list"
             onClick={onCloseSheet}
           >
-            <ChevronDown size={19} />
+            <FileText size={16} />
+            <span>{getFileName(activePath)}</span>
+            <ChevronDown size={16} />
+          </button>
+
+          <button
+            type="button"
+            className="mobile-file-sheet-more"
+            aria-label="Open file actions"
+            disabled={!activePath}
+            onClick={() => {
+              onCloseSheet?.();
+              onOpenFileActions?.();
+            }}
+          >
+            <MoreHorizontal size={20} />
           </button>
         </header>
       ) : null}

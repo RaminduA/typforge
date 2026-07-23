@@ -1141,6 +1141,10 @@ export function TypforgeShell({ projectId }: TypforgeShellProps) {
               }}
               onDownloadFile={handleDownloadFile}
               onCloseSheet={() => setMobileFilePickerOpen(false)}
+              onOpenFileActions={() => {
+                setMobileFilePickerOpen(false);
+                setMobileFileActionsOpen(true);
+              }}
             />
           </div>
         </div>

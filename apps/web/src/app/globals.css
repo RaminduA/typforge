@@ -5979,6 +5979,214 @@ body > .pdf-menu[data-pdf-floating-menu] .pdf-menu-item:disabled {
     height: 17px;
   }
 
+  /* Mobile refinement pass 3: compact typography and content-sized menus. */
+  .mobile-dashboard-view,
+  .mobile-dashboard-view button,
+  .mobile-dashboard-view input {
+    font-weight: 400 !important;
+  }
+
+  .mobile-dashboard-brand {
+    font-weight: 800 !important;
+  }
+
+  .mobile-dashboard-avatar,
+  .mobile-dashboard-account-name,
+  .mobile-dashboard-filter-trigger,
+  .mobile-dashboard-project-name,
+  .mobile-dashboard-project-created {
+    font-weight: 400 !important;
+  }
+
+  .mobile-dashboard-create-button {
+    width: 44px;
+    height: 44px;
+  }
+
+  .mobile-dashboard-create-button svg {
+    width: 22px;
+    height: 22px;
+  }
+
+  .mobile-dashboard-account-menu,
+  .mobile-dashboard-filter-menu,
+  .mobile-dashboard-create-menu {
+    height: auto;
+    max-height: calc(100dvh - 28px);
+    padding: 6px;
+    border-radius: 16px;
+  }
+
+  .mobile-dashboard-account-menu button,
+  .mobile-dashboard-filter-menu button,
+  .mobile-dashboard-create-menu button {
+    min-height: 40px;
+    height: 40px;
+    padding: 0 14px;
+    font-weight: 400 !important;
+  }
+
+  .mobile-dashboard-filter-menu button,
+  .mobile-dashboard-create-menu button {
+    font-weight: 400 !important;
+  }
+
+  .mobile-dashboard-project-row .dashboard-project-preview {
+    justify-self: start;
+    margin-left: 4px;
+  }
+
+  .popup-menu.is-positioned {
+    top: auto !important;
+    height: auto !important;
+    max-height: calc(100dvh - 28px) !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    padding: 6px !important;
+    border-radius: 16px !important;
+  }
+
+  .popup-menu-item {
+    min-height: 40px !important;
+    height: 40px !important;
+    padding: 0 11px !important;
+    font-size: 13px !important;
+    font-weight: 400 !important;
+  }
+
+  .popup-menu-icon svg {
+    width: 15px !important;
+    height: 15px !important;
+  }
+
+  .mobile-workspace-header h1 {
+    font-size: 17px;
+    font-weight: 400 !important;
+  }
+
+  .mobile-workspace-share {
+    font-size: 12px;
+    font-weight: 400 !important;
+  }
+
+  .mobile-workspace-tab {
+    font-size: 12px;
+    font-weight: 400 !important;
+  }
+
+  .mobile-editor-file-button {
+    gap: 6px;
+  }
+
+  .mobile-editor-file-button > span:not(.mobile-editor-dirty) {
+    flex: 0 1 auto;
+    font-size: 13px;
+    font-weight: 400 !important;
+  }
+
+  .mobile-editor-file-button > svg:last-child {
+    margin-left: 0;
+  }
+
+  .mobile-editor-dirty {
+    margin-left: 2px;
+  }
+
+  .mobile-file-sheet-heading {
+    gap: 8px;
+    padding: 7px 14px;
+  }
+
+  .mobile-file-sheet-current {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 6px;
+    flex: 0 1 auto;
+    max-width: calc(100% - 42px);
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--account-menu-text);
+    font-size: 13px;
+    font-weight: 400 !important;
+    text-align: left;
+  }
+
+  .mobile-file-sheet-current span {
+    flex: 0 1 auto;
+  }
+
+  .mobile-file-sheet-current svg {
+    flex: 0 0 auto;
+  }
+
+  .mobile-file-sheet-more {
+    display: grid;
+    place-items: center;
+    flex: 0 0 36px;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--account-menu-text);
+  }
+
+  .mobile-file-sheet-more:active {
+    background: var(--account-menu-hover);
+  }
+
+  .mobile-file-sheet-more:disabled {
+    opacity: 0.45;
+  }
+
+  .mobile-file-actions-sheet {
+    height: auto;
+    padding: 6px;
+    border-radius: 18px;
+  }
+
+  .mobile-file-actions-sheet button {
+    min-height: 42px;
+    height: 42px;
+    padding: 0 12px;
+    font-size: 13px;
+    font-weight: 400;
+  }
+
+  .account-menu-panel {
+    height: auto !important;
+    max-height: calc(100dvh - 28px) !important;
+    overflow-y: auto !important;
+    padding: 5px !important;
+    border-radius: 16px !important;
+  }
+
+  .account-menu-row {
+    min-height: 38px !important;
+    height: 38px !important;
+    padding: 0 10px !important;
+    font-size: 13px !important;
+    font-weight: 400 !important;
+  }
+
+  .account-menu-row-label {
+    font-size: 13px !important;
+    font-weight: 400 !important;
+  }
+
+  .account-menu-row-icon svg {
+    width: 15px !important;
+    height: 15px !important;
+  }
+
+  .account-menu-row-muted {
+    font-size: 11px !important;
+  }
+
   @keyframes mobile-sheet-enter {
     from {
       opacity: 0;
