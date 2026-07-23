@@ -15,6 +15,7 @@ permissions:
 
 env:
   API_IMAGE: ghcr.io/ramindua/typforge-api
+  NEXT_PUBLIC_API_BASE_URL: https://typforge-api.onrender.com/api/v1
 
 jobs:
   api-ci:
