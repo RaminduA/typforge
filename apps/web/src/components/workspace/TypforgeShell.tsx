@@ -29,6 +29,7 @@ import type { CompileResult, CompileStatus } from "@/types/build";
 import type { FileNode, Project, VersionSnapshot } from "@/types/project";
 import { EditorPane } from "./EditorPane";
 import { LeftSidebar } from "./LeftSidebar";
+import { MobileFileBrowser } from "./MobileFileBrowser";
 import { PdfPreviewPane } from "./PdfPreviewPane";
 import { ToolTab, ToolsPanel } from "./ToolsPanel";
 import {
@@ -92,6 +93,8 @@ function diagnosticsToLogText(result: CompileResult) {
   );
 }
 
+type MobileWorkspaceTab = "files" | "editor" | "preview";
+
 interface TypforgeShellProps {
   projectId: string;
 }
@@ -134,6 +137,10 @@ export function TypforgeShell({ projectId }: TypforgeShellProps) {
   const [pendingClosePath, setPendingClosePath] = useState<string | null>(null);
   const [editorSettings, setEditorSettings] = useState<EditorSettings>(DEFAULT_EDITOR_SETTINGS);
   const [pdfViewerSettings, setPdfViewerSettings] = useState<PdfViewerSettings>(DEFAULT_PDF_VIEWER_SETTINGS);
+  const [isMobile, setIsMobile] = useState(false);
+  const [mobileTab, setMobileTab] = useState<MobileWorkspaceTab>("editor");
+  const [mobileFilePickerOpen, setMobileFilePickerOpen] = useState(false);
+  const [mobileFileActionsOpen, setMobileFileActionsOpen] = useState(false);
   const compileInFlightRef = useRef(false);
 
   const fullScreenModalOpen =
@@ -142,7 +149,9 @@ export function TypforgeShell({ projectId }: TypforgeShellProps) {
     textDialog !== null ||
     deleteDialog !== null ||
     messageDialog !== null ||
-    pendingClosePath !== null;
+    pendingClosePath !== null ||
+    mobileFilePickerOpen ||
+    mobileFileActionsOpen;
 
   const selectedPdfVersion = pdfHistory.index >= 0 ? pdfHistory.entries[pdfHistory.index] : undefined;
 
@@ -176,10 +185,32 @@ export function TypforgeShell({ projectId }: TypforgeShellProps) {
   }, [theme]);
 
   useEffect(() => {
+    const mobileQuery = window.matchMedia("(max-width: 768px)");
+
     setTheme(loadThemePreference());
     setEditorSettings(loadEditorSettings());
     setPdfViewerSettings(loadPdfViewerSettings());
+    setIsMobile(mobileQuery.matches);
     setLayoutReady(true);
+  }, []);
+
+  useEffect(() => {
+    const mobileQuery = window.matchMedia("(max-width: 768px)");
+
+    function handleMobileChange(event: MediaQueryListEvent) {
+      setIsMobile(event.matches);
+
+      if (!event.matches) {
+        setMobileFilePickerOpen(false);
+        setMobileFileActionsOpen(false);
+      }
+    }
+
+    mobileQuery.addEventListener("change", handleMobileChange);
+
+    return () => {
+      mobileQuery.removeEventListener("change", handleMobileChange);
+    };
   }, []);
 
   useEffect(() => {
@@ -856,119 +887,316 @@ export function TypforgeShell({ projectId }: TypforgeShellProps) {
 
   return (
     <>
-      <Group
-        id="typforge-workspace-outer"
-        orientation="horizontal"
-        className={fullScreenModalOpen ? "shell shell-modal-blurred" : "shell"}
-      >
-        <Panel
-          id="file-sidebar"
-          defaultSize={panelPercent(LEFT_PANEL_DEFAULT_SIZE)}
-          minSize={panelPercent(LEFT_PANEL_MIN_SIZE)}
-          maxSize={panelPercent(LEFT_PANEL_MAX_SIZE)}
+      {isMobile ? (
+        <section
+          className={fullScreenModalOpen ? "mobile-workspace shell-modal-blurred" : "mobile-workspace"}
         >
-          <div className="workspace-panel workspace-panel-sidebar">
-            <LeftSidebar
+          <header className="mobile-workspace-header">
+            <button
+              type="button"
+              className="mobile-workspace-brand"
+              aria-label="Back to projects"
+              onClick={() => router.push("/")}
+            >
+              T
+            </button>
+
+            <h1>{project?.name ?? "Loading project..."}</h1>
+
+            <button
+              type="button"
+              className="mobile-workspace-share"
+              onClick={handleShareProject}
+            >
+              Share
+            </button>
+          </header>
+
+          <nav className="mobile-workspace-tabs" aria-label="Workspace sections">
+            {(["files", "editor", "preview"] as MobileWorkspaceTab[]).map((tab) => (
+              <button
+                key={tab}
+                type="button"
+                className={mobileTab === tab ? "mobile-workspace-tab active" : "mobile-workspace-tab"}
+                aria-selected={mobileTab === tab}
+                onClick={() => setMobileTab(tab)}
+              >
+                {tab[0].toUpperCase() + tab.slice(1)}
+              </button>
+            ))}
+          </nav>
+
+          <div className={`mobile-workspace-body mobile-workspace-body-${mobileTab}`}>
+            {mobileTab === "files" ? (
+              <MobileFileBrowser
+                variant="page"
+                project={project}
+                tree={tree}
+                activePath={activePath}
+                onOpenFile={handleOpenFile}
+                onCreateFile={handleCreateFile}
+                onCreateFolder={handleCreateFolder}
+                onUploadFiles={handleUploadFiles}
+                onUploadFolder={handleUploadFolder}
+                onRenameEntry={handleRenameEntry}
+                onDeleteEntry={handleDeleteEntry}
+                onDownloadFile={handleDownloadFile}
+                onOpenSettings={() => setSettingsOpen(true)}
+              />
+            ) : null}
+
+            {mobileTab === "editor" ? (
+              <EditorPane
+                variant="mobile"
+                openFiles={openFiles}
+                activePath={activePath}
+                content={content}
+                fontSize={editorSettings.fontSize}
+                toolsOpen={false}
+                onChange={handleEditorChange}
+                onSelectTab={handleSelectEditorTab}
+                onCloseTab={handleRequestCloseEditorTab}
+                onOpenTools={() => undefined}
+                onOpenMobileFilePicker={() => setMobileFilePickerOpen(true)}
+                onOpenMobileFileActions={() => setMobileFileActionsOpen(true)}
+              />
+            ) : null}
+
+            {mobileTab === "preview" ? (
+              <div className="mobile-preview-pane">
+                <PdfPreviewPane
+                  mobile
+                  pdfUrl={pdfUrl}
+                  downloadUrl={downloadUrl}
+                  compileStatus={compileStatus}
+                  settings={pdfViewerSettings}
+                  canShowPreviousCompile={canShowPreviousCompile}
+                  canShowNextCompile={canShowNextCompile}
+                  onCompile={handleCompile}
+                  onShowPreviousCompile={handleShowPreviousCompile}
+                  onShowNextCompile={handleShowNextCompile}
+                />
+              </div>
+            ) : null}
+          </div>
+        </section>
+      ) : (
+        <Group
+          id="typforge-workspace-outer"
+          orientation="horizontal"
+          className={fullScreenModalOpen ? "shell shell-modal-blurred" : "shell"}
+        >
+          <Panel
+            id="file-sidebar"
+            defaultSize={panelPercent(LEFT_PANEL_DEFAULT_SIZE)}
+            minSize={panelPercent(LEFT_PANEL_MIN_SIZE)}
+            maxSize={panelPercent(LEFT_PANEL_MAX_SIZE)}
+          >
+            <div className="workspace-panel workspace-panel-sidebar">
+              <LeftSidebar
+                project={project}
+                tree={tree}
+                activePath={activePath}
+                onOpenFile={handleOpenFile}
+                onCreateFile={handleCreateFile}
+                onCreateFolder={handleCreateFolder}
+                onUploadFiles={handleUploadFiles}
+                onUploadFolder={handleUploadFolder}
+                onRenameEntry={handleRenameEntry}
+                onDeleteEntry={handleDeleteEntry}
+                onDownloadFile={handleDownloadFile}
+                onShareProject={handleShareProject}
+                onRenameProject={handleRenameProject}
+                onDeleteProject={handleDeleteProject}
+                onDuplicateProject={handleDuplicateProject}
+                onExportProject={handleExportProject}
+                onOpenSettings={() => setSettingsOpen(true)}
+              />
+            </div>
+          </Panel>
+
+          <Separator
+            id="sidebar-editor-separator"
+            className="workspace-resize-handle"
+          />
+
+          <Panel
+            id="workspace-main-area"
+            defaultSize={panelPercent(MAIN_AREA_DEFAULT_SIZE)}
+            minSize={panelPercent(MAIN_AREA_MIN_SIZE)}
+            maxSize={panelPercent(MAIN_AREA_MAX_SIZE)}
+          >
+            <div className="workspace-panel workspace-panel-main">
+              <Group
+                id="typforge-workspace-inner"
+                orientation="horizontal"
+                className="workspace-inner-group"
+              >
+                <Panel
+                  id="typst-editor"
+                  defaultSize={panelPercent(EDITOR_PANEL_DEFAULT_SIZE)}
+                  minSize={panelPercent(EDITOR_PANEL_MIN_SIZE)}
+                  maxSize={panelPercent(EDITOR_PANEL_MAX_SIZE)}
+                >
+                  <div className="workspace-panel workspace-panel-editor">
+                    <EditorPane
+                      openFiles={openFiles}
+                      activePath={activePath}
+                      content={content}
+                      fontSize={editorSettings.fontSize}
+                      toolsOpen={toolsOpen}
+                      onChange={handleEditorChange}
+                      onSelectTab={handleSelectEditorTab}
+                      onCloseTab={handleRequestCloseEditorTab}
+                      onOpenTools={() => setToolsOpen((value) => !value)}
+                    />
+                  </div>
+                </Panel>
+
+                <Separator
+                  id="editor-preview-separator"
+                  className="workspace-resize-handle"
+                />
+
+                <Panel
+                  id="preview-tools"
+                  defaultSize={panelPercent(RIGHT_PANEL_DEFAULT_SIZE)}
+                  minSize={panelPercent(RIGHT_PANEL_MIN_SIZE)}
+                  maxSize={panelPercent(RIGHT_PANEL_MAX_SIZE)}
+                >
+                  <div className="workspace-panel workspace-panel-right">
+                    {toolsOpen ? (
+                      <ToolsPanel
+                        activeTab={activeTool}
+                        onChangeTab={setActiveTool}
+                        project={project}
+                        versions={versions}
+                        logs={logs}
+                        onCreateVersion={handleCreateVersion}
+                        onRestoreVersion={handleRestoreVersion}
+                      />
+                    ) : (
+                      <PdfPreviewPane
+                        pdfUrl={pdfUrl}
+                        downloadUrl={downloadUrl}
+                        compileStatus={compileStatus}
+                        settings={pdfViewerSettings}
+                        canShowPreviousCompile={canShowPreviousCompile}
+                        canShowNextCompile={canShowNextCompile}
+                        onCompile={handleCompile}
+                        onShowPreviousCompile={handleShowPreviousCompile}
+                        onShowNextCompile={handleShowNextCompile}
+                      />
+                    )}
+                  </div>
+                </Panel>
+              </Group>
+            </div>
+          </Panel>
+        </Group>
+      )}
+
+      {isMobile && mobileFilePickerOpen ? (
+        <div
+          className="mobile-bottom-sheet-layer"
+          role="presentation"
+          onPointerDown={() => setMobileFilePickerOpen(false)}
+        >
+          <div
+            className="mobile-file-picker-sheet"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Project files"
+            onPointerDown={(event) => event.stopPropagation()}
+          >
+            <MobileFileBrowser
+              variant="sheet"
               project={project}
               tree={tree}
               activePath={activePath}
-              onOpenFile={handleOpenFile}
-              onCreateFile={handleCreateFile}
-              onCreateFolder={handleCreateFolder}
+              onOpenFile={(path) => {
+                void handleOpenFile(path);
+                setMobileFilePickerOpen(false);
+              }}
+              onCreateFile={(parentPath) => {
+                setMobileFilePickerOpen(false);
+                handleCreateFile(parentPath);
+              }}
+              onCreateFolder={(parentPath) => {
+                setMobileFilePickerOpen(false);
+                handleCreateFolder(parentPath);
+              }}
               onUploadFiles={handleUploadFiles}
               onUploadFolder={handleUploadFolder}
-              onRenameEntry={handleRenameEntry}
-              onDeleteEntry={handleDeleteEntry}
+              onRenameEntry={(node) => {
+                setMobileFilePickerOpen(false);
+                handleRenameEntry(node);
+              }}
+              onDeleteEntry={(node) => {
+                setMobileFilePickerOpen(false);
+                handleDeleteEntry(node);
+              }}
               onDownloadFile={handleDownloadFile}
-              onShareProject={handleShareProject}
-              onRenameProject={handleRenameProject}
-              onDeleteProject={handleDeleteProject}
-              onDuplicateProject={handleDuplicateProject}
-              onExportProject={handleExportProject}
-              onOpenSettings={() => setSettingsOpen(true)}
+              onCloseSheet={() => setMobileFilePickerOpen(false)}
             />
           </div>
-        </Panel>
+        </div>
+      ) : null}
 
-        <Separator
-          id="sidebar-editor-separator"
-          className="workspace-resize-handle"
-        />
-
-        <Panel
-          id="workspace-main-area"
-          defaultSize={panelPercent(MAIN_AREA_DEFAULT_SIZE)}
-          minSize={panelPercent(MAIN_AREA_MIN_SIZE)}
-          maxSize={panelPercent(MAIN_AREA_MAX_SIZE)}
+      {isMobile && mobileFileActionsOpen && activePath ? (
+        <div
+          className="mobile-bottom-sheet-layer"
+          role="presentation"
+          onPointerDown={() => setMobileFileActionsOpen(false)}
         >
-          <div className="workspace-panel workspace-panel-main">
-            <Group
-              id="typforge-workspace-inner"
-              orientation="horizontal"
-              className="workspace-inner-group"
+          <div
+            className="mobile-file-actions-sheet"
+            role="dialog"
+            aria-modal="true"
+            aria-label="File actions"
+            onPointerDown={(event) => event.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={() => {
+                setMobileFileActionsOpen(false);
+                handleRenameEntry({
+                  name: activePath.split("/").pop() ?? activePath,
+                  path: activePath,
+                  type: "file"
+                });
+              }}
             >
-              <Panel
-                id="typst-editor"
-                defaultSize={panelPercent(EDITOR_PANEL_DEFAULT_SIZE)}
-                minSize={panelPercent(EDITOR_PANEL_MIN_SIZE)}
-                maxSize={panelPercent(EDITOR_PANEL_MAX_SIZE)}
-              >
-                <div className="workspace-panel workspace-panel-editor">
-                  <EditorPane
-                    openFiles={openFiles}
-                    activePath={activePath}
-                    content={content}
-                    fontSize={editorSettings.fontSize}
-                    toolsOpen={toolsOpen}
-                    onChange={handleEditorChange}
-                    onSelectTab={handleSelectEditorTab}
-                    onCloseTab={handleRequestCloseEditorTab}
-                    onOpenTools={() => setToolsOpen((value) => !value)}
-                  />
-                </div>
-              </Panel>
+              Rename file
+            </button>
 
-              <Separator
-                id="editor-preview-separator"
-                className="workspace-resize-handle"
-              />
+            <button
+              type="button"
+              onClick={() => {
+                setMobileFileActionsOpen(false);
+                handleDownloadFile(activePath);
+              }}
+            >
+              Download file
+            </button>
 
-              <Panel
-                id="preview-tools"
-                defaultSize={panelPercent(RIGHT_PANEL_DEFAULT_SIZE)}
-                minSize={panelPercent(RIGHT_PANEL_MIN_SIZE)}
-                maxSize={panelPercent(RIGHT_PANEL_MAX_SIZE)}
-              >
-                <div className="workspace-panel workspace-panel-right">
-                  {toolsOpen ? (
-                    <ToolsPanel
-                      activeTab={activeTool}
-                      onChangeTab={setActiveTool}
-                      project={project}
-                      versions={versions}
-                      logs={logs}
-                      onCreateVersion={handleCreateVersion}
-                      onRestoreVersion={handleRestoreVersion}
-                    />
-                  ) : (
-                    <PdfPreviewPane
-                      pdfUrl={pdfUrl}
-                      downloadUrl={downloadUrl}
-                      compileStatus={compileStatus}
-                      settings={pdfViewerSettings}
-                      canShowPreviousCompile={canShowPreviousCompile}
-                      canShowNextCompile={canShowNextCompile}
-                      onCompile={handleCompile}
-                      onShowPreviousCompile={handleShowPreviousCompile}
-                      onShowNextCompile={handleShowNextCompile}
-                    />
-                  )}
-                </div>
-              </Panel>
-            </Group>
+            <button
+              type="button"
+              className="danger"
+              onClick={() => {
+                setMobileFileActionsOpen(false);
+                handleDeleteEntry({
+                  name: activePath.split("/").pop() ?? activePath,
+                  path: activePath,
+                  type: "file"
+                });
+              }}
+            >
+              Delete file
+            </button>
           </div>
-        </Panel>
-      </Group>
+        </div>
+      ) : null}
 
       {settingsOpen ? (
         <SettingsModal

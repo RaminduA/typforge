@@ -71,6 +71,7 @@ interface PdfDocumentViewerProps {
   pdfUrl?: string;
   downloadUrl?: string;
   compileStatus: CompileStatus;
+  mobile?: boolean;
   settings: PdfViewerSettings;
   canShowPreviousCompile: boolean;
   canShowNextCompile: boolean;
@@ -124,7 +125,18 @@ function ZoomFitIcon({ size = 16 }: { size?: number }) {
   );
 }
 
-export function PdfDocumentViewer({ pdfUrl, downloadUrl, compileStatus, settings, canShowPreviousCompile, canShowNextCompile, onCompile, onShowPreviousCompile, onShowNextCompile }: PdfDocumentViewerProps) {
+export function PdfDocumentViewer({
+  pdfUrl,
+  downloadUrl,
+  compileStatus,
+  mobile = false,
+  settings,
+  canShowPreviousCompile,
+  canShowNextCompile,
+  onCompile,
+  onShowPreviousCompile,
+  onShowNextCompile
+}: PdfDocumentViewerProps) {
   const rootRef = useRef<HTMLElement>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
   const statusMenuAnchorRef = useRef<HTMLDivElement>(null);
@@ -194,6 +206,15 @@ export function PdfDocumentViewer({ pdfUrl, downloadUrl, compileStatus, settings
   useEffect(() => {pinchZoomRef.current = zoom === "fit" ? fitPercent : zoom;}, [fitPercent, zoom]);
 
   useEffect(() => {
+    if (!mobile) {
+      return;
+    }
+
+    setZoom("fit");
+    setOpenMenu(null);
+  }, [mobile]);
+
+  useEffect(() => {
     if (!openMenu) return;
 
     updateFloatingMenuPosition(openMenu);
@@ -214,6 +235,10 @@ export function PdfDocumentViewer({ pdfUrl, downloadUrl, compileStatus, settings
   }, [openMenu]);
 
   useEffect(() => {
+    if (mobile) {
+      return;
+    }
+
     const root = rootRef.current;
 
     if (!root) {
@@ -316,7 +341,7 @@ export function PdfDocumentViewer({ pdfUrl, downloadUrl, compileStatus, settings
       rootElement.removeEventListener("focusin", handleFocusIn);
       rootElement.removeEventListener("focusout", handleFocusOut);
     };
-  }, [openMenu]);
+  }, [mobile, openMenu]);
 
   useLayoutEffect(() => {
     const viewport = viewportRef.current;
@@ -365,7 +390,7 @@ export function PdfDocumentViewer({ pdfUrl, downloadUrl, compileStatus, settings
 
     function measureStableFitWidth() {
       const viewportWidth = viewportElement.getBoundingClientRect().width;
-      return Math.max(240, Math.floor(viewportWidth - 56));
+      return Math.max(240, Math.floor(viewportWidth - (mobile ? 20 : 56)));
     }
 
     function updateFitWidth() {
@@ -398,7 +423,7 @@ export function PdfDocumentViewer({ pdfUrl, downloadUrl, compileStatus, settings
         window.cancelAnimationFrame(animationFrameId);
       }
     };
-  }, []);
+  }, [mobile]);
 
   useEffect(() => {
     function handlePointerDown(event: PointerEvent) {
@@ -452,7 +477,7 @@ export function PdfDocumentViewer({ pdfUrl, downloadUrl, compileStatus, settings
   }, [fitPercent, setViewerZoom, zoom]);
 
   useEffect(() => {
-    if (!settings.zoomShortcuts) {
+    if (mobile || !settings.zoomShortcuts) {
       return;
     }
 
@@ -487,9 +512,13 @@ export function PdfDocumentViewer({ pdfUrl, downloadUrl, compileStatus, settings
     return () => {
       window.removeEventListener("keydown", handleZoomShortcut, true);
     };
-  }, [handleZoomIn, handleZoomOut, setViewerZoom, settings.zoomShortcuts]);
+  }, [handleZoomIn, handleZoomOut, mobile, setViewerZoom, settings.zoomShortcuts]);
 
   useEffect(() => {
+    if (mobile) {
+      return;
+    }
+
     const root = rootRef.current;
 
     if (!root) {
@@ -548,7 +577,7 @@ export function PdfDocumentViewer({ pdfUrl, downloadUrl, compileStatus, settings
         pinchFrameRef.current = null;
       }
     };
-  }, [fitPercent, zoom]);
+  }, [fitPercent, mobile, zoom]);
 
   const updateCurrentPage = useCallback(() => {
     const viewport = viewportRef.current;
@@ -969,10 +998,10 @@ export function PdfDocumentViewer({ pdfUrl, downloadUrl, compileStatus, settings
   return (
     <section
       ref={rootRef}
-      className="pdf-viewer"
+      className={mobile ? "pdf-viewer pdf-viewer-mobile" : "pdf-viewer"}
       data-pdf-theme={settings.darkMode ? "dark" : "light"}
     >
-      {openMenu ? (
+      {!mobile && openMenu ? (
         <div
           className="pdf-menu-interaction-shield"
           aria-hidden="true"
@@ -983,6 +1012,7 @@ export function PdfDocumentViewer({ pdfUrl, downloadUrl, compileStatus, settings
           }}
         />
       ) : null}
+      {!mobile ? (
       <header className="pdf-viewer-toolbar">
         <div
           ref={statusMenuAnchorRef}
@@ -1114,6 +1144,7 @@ export function PdfDocumentViewer({ pdfUrl, downloadUrl, compileStatus, settings
           </div>
         </div>
       </header>
+      ) : null}
 
       <div
         ref={viewportRef}
@@ -1186,7 +1217,7 @@ export function PdfDocumentViewer({ pdfUrl, downloadUrl, compileStatus, settings
         ) : null}
       </div>
 
-      {pdfUrl ? (
+      {!mobile && pdfUrl ? (
         <nav
           className="pdf-floating-navigation"
           aria-label="Compiled PDF history and source synchronization"
@@ -1249,9 +1280,42 @@ export function PdfDocumentViewer({ pdfUrl, downloadUrl, compileStatus, settings
         </nav>
       ) : null}
 
-      {renderOpenPdfMenu()}
+      {mobile ? (
+        <footer className="pdf-mobile-toolbar">
+          <button
+            type="button"
+            className={`pdf-mobile-compile-button is-${compileStatus}`}
+            disabled={compileStatus === "compiling"}
+            onClick={onCompile}
+          >
+            {renderStatusIcon()}
+            <span>{statusLabel}</span>
+          </button>
 
-      {tooltip && typeof document !== "undefined"
+          {downloadUrl ? (
+            <a
+              className="pdf-mobile-download-button"
+              href={downloadUrl}
+              aria-label="Download PDF"
+            >
+              <CircleArrowDown size={21} />
+            </a>
+          ) : (
+            <button
+              type="button"
+              className="pdf-mobile-download-button"
+              aria-label="Download PDF"
+              disabled
+            >
+              <CircleArrowDown size={21} />
+            </button>
+          )}
+        </footer>
+      ) : null}
+
+      {!mobile ? renderOpenPdfMenu() : null}
+
+      {!mobile && tooltip && typeof document !== "undefined"
         ? createPortal(
             <div
               className={tooltip.placement === "above"
@@ -1265,7 +1329,7 @@ export function PdfDocumentViewer({ pdfUrl, downloadUrl, compileStatus, settings
           )
         : null}
 
-      {renderPdfMenuShield()}
+      {!mobile ? renderPdfMenuShield() : null}
     </section>
   );
 }

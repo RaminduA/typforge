@@ -25,6 +25,7 @@ interface PdfPreviewPaneProps {
   downloadUrl?: string;
   compileStatus: CompileStatus;
   settings: PdfViewerSettings;
+  mobile?: boolean;
   canShowPreviousCompile: boolean;
   canShowNextCompile: boolean;
   onCompile: () => void;
@@ -37,6 +38,7 @@ export function PdfPreviewPane({
   downloadUrl,
   compileStatus,
   settings,
+  mobile = false,
   canShowPreviousCompile,
   canShowNextCompile,
   onCompile,
@@ -50,6 +52,7 @@ export function PdfPreviewPane({
         downloadUrl={downloadUrl}
         compileStatus={compileStatus}
         settings={settings}
+        mobile={mobile}
         canShowPreviousCompile={canShowPreviousCompile}
         canShowNextCompile={canShowNextCompile}
         onCompile={onCompile}
