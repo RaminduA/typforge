@@ -722,12 +722,28 @@ export function ProjectDashboard() {
       return (
         <ConfirmDialog
           open
-          title="Rename project"
-          confirmLabel="Rename"
-          submittingLabel="Renaming..."
+          className="dashboard-project-action-dialog is-rename"
+          backdropClassName="dashboard-project-action-backdrop"
+          title={
+            <>
+              <span className="dashboard-dialog-desktop-copy">Rename project</span>
+              <span className="dashboard-dialog-mobile-copy">Edit project name</span>
+            </>
+          }
+          confirmLabel={
+            <>
+              <span className="dashboard-dialog-desktop-copy">Rename</span>
+              <span className="dashboard-dialog-mobile-copy">Save</span>
+            </>
+          }
+          submittingLabel="Saving..."
           onClose={() => setProjectActionDialog(null)}
           onConfirm={() => confirmRenameProject(project)}
         >
+          <p className="dashboard-dialog-mobile-copy dashboard-project-action-message">
+            Enter a new name for your project.
+          </p>
+
           <input
             className="action-dialog-input"
             value={renameDraft}
@@ -751,14 +767,24 @@ export function ProjectDashboard() {
       return (
         <ConfirmDialog
           open
-          title="Duplicate project"
+          className="dashboard-project-action-dialog is-duplicate"
+          backdropClassName="dashboard-project-action-backdrop"
+          title={
+            <>
+              <span className="dashboard-dialog-desktop-copy">Duplicate project</span>
+              <span className="dashboard-dialog-mobile-copy">Confirm duplication</span>
+            </>
+          }
           confirmLabel="Duplicate"
           submittingLabel="Duplicating..."
           onClose={() => setProjectActionDialog(null)}
           onConfirm={() => confirmDuplicateProject(project)}
         >
-          <p>
+          <p className="dashboard-dialog-desktop-copy">
             Create a copy of <code>{project.name}</code>?
+          </p>
+          <p className="dashboard-dialog-mobile-copy dashboard-project-action-message">
+            Are you sure you want to duplicate this project?
           </p>
         </ConfirmDialog>
       );
@@ -767,15 +793,25 @@ export function ProjectDashboard() {
     return (
       <ConfirmDialog
         open
-        title="Delete project"
+        className="dashboard-project-action-dialog is-delete"
+        backdropClassName="dashboard-project-action-backdrop"
+        title={
+          <>
+            <span className="dashboard-dialog-desktop-copy">Delete project</span>
+            <span className="dashboard-dialog-mobile-copy">Confirm deletion</span>
+          </>
+        }
         confirmLabel="Delete"
         submittingLabel="Deleting..."
         danger
         onClose={() => setProjectActionDialog(null)}
         onConfirm={() => confirmDeleteProject(project)}
       >
-        <p>
+        <p className="dashboard-dialog-desktop-copy">
           Delete <code>{project.name}</code>? This action cannot be undone.
+        </p>
+        <p className="dashboard-dialog-mobile-copy dashboard-project-action-message">
+          Are you sure you want to delete this project?
         </p>
       </ConfirmDialog>
     );
@@ -785,7 +821,11 @@ export function ProjectDashboard() {
     <>
         <main
             ref={dashboardRootRef}
-            className={settingsOpen ? "dashboard-page dashboard-page-blurred" : "dashboard-page"}
+            className={[
+              "dashboard-page",
+              settingsOpen ? "dashboard-page-blurred" : "",
+              projectActionDialog ? "dashboard-page-mobile-action-blurred" : ""
+            ].filter(Boolean).join(" ")}
         >
         <section className="mobile-dashboard-view">
           <header className="mobile-dashboard-account-bar">
