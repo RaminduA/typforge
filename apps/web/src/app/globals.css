@@ -4926,7 +4926,7 @@ body > .pdf-menu[data-pdf-floating-menu] .pdf-menu-item:disabled {
     max-height: calc(100dvh - 24px);
     overflow-y: auto;
     border: 0;
-    border-radius: 12px;
+    border-radius: 10px;
     background: #1d1d1f;
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.46);
   }
@@ -4944,38 +4944,38 @@ body > .pdf-menu[data-pdf-floating-menu] .pdf-menu-item:disabled {
   }
 
   .dashboard-project-action-dialog .action-dialog-content {
-    padding: 31px 26px 14px;
+    padding: 22px 22px 9px;
     text-align: center;
   }
 
   .dashboard-project-action-dialog .action-dialog-title {
-    margin: 0 0 14px;
-    font-size: 20px;
-    font-weight: 620;
+    margin: 0 0 9px;
+    font-size: 17px;
+    font-weight: 560;
     line-height: 1.25;
     text-align: center;
   }
 
   .dashboard-project-action-dialog .action-dialog-description {
     color: #adadb2;
-    font-size: 16px;
-    line-height: 1.45;
+    font-size: 13px;
+    line-height: 1.4;
     text-align: center;
   }
 
   .dashboard-project-action-message {
-    margin: 0 0 10px;
+    margin: 0 0 7px;
   }
 
   .dashboard-project-action-dialog .action-dialog-input {
-    height: 48px;
-    padding: 0 15px;
-    border: 2px solid #66666d;
-    border-radius: 8px;
+    height: 40px;
+    padding: 0 12px;
+    border: 1px solid #66666d;
+    border-radius: 7px;
     background: transparent;
     color: #f4f4f5;
-    font-size: 16px;
-    font-weight: 500;
+    font-size: 13px;
+    font-weight: 450;
     text-align: left;
   }
 
@@ -4988,19 +4988,19 @@ body > .pdf-menu[data-pdf-floating-menu] .pdf-menu-item:disabled {
     display: flex;
     flex-direction: column-reverse;
     align-items: stretch;
-    gap: 12px;
-    padding: 30px 26px 34px;
+    gap: 7px;
+    padding: 18px 22px 21px;
   }
 
   .dashboard-project-action-dialog .action-dialog-submit,
   .dashboard-project-action-dialog .action-dialog-cancel {
     width: 100%;
-    min-height: 50px;
+    min-height: 40px;
     margin: 0;
-    padding: 0 18px;
+    padding: 0 14px;
     border-radius: 999px;
-    font-size: 16px;
-    font-weight: 500;
+    font-size: 13px;
+    font-weight: 450;
   }
 
   .dashboard-project-action-dialog .action-dialog-submit {
@@ -5028,8 +5028,13 @@ body > .pdf-menu[data-pdf-floating-menu] .pdf-menu-item:disabled {
     border-color: transparent;
   }
 
+  .dashboard-project-action-dialog.is-duplicate .action-dialog-cancel,
+  .dashboard-project-action-dialog.is-delete .action-dialog-cancel {
+    border: 0;
+  }
+
   .dashboard-project-action-dialog.is-rename .action-dialog-actions {
-    padding-top: 36px;
+    padding-top: 22px;
   }
 
   .mobile-dashboard-view {
