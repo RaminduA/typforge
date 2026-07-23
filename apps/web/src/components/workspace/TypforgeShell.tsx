@@ -1106,7 +1106,11 @@ export function TypforgeShell({ projectId }: TypforgeShellProps) {
         <div
           className="mobile-bottom-sheet-layer"
           role="presentation"
-          onPointerDown={() => setMobileFilePickerOpen(false)}
+          onPointerDown={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            setMobileFilePickerOpen(false);
+          }}
         >
           <div
             className="mobile-file-picker-sheet"
@@ -1154,7 +1158,11 @@ export function TypforgeShell({ projectId }: TypforgeShellProps) {
         <div
           className="mobile-bottom-sheet-layer"
           role="presentation"
-          onPointerDown={() => setMobileFileActionsOpen(false)}
+          onPointerDown={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            setMobileFileActionsOpen(false);
+          }}
         >
           <div
             className="mobile-file-actions-sheet"

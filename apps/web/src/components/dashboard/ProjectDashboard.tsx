@@ -528,10 +528,17 @@ export function ProjectDashboard() {
     event.stopPropagation();
 
     const bounds = event.currentTarget.getBoundingClientRect();
+    const viewportGap = 12;
+    const menuGap = 7;
+    const estimatedMenuHeight = 132;
+    const preferredTop = bounds.bottom + menuGap;
+    const top = preferredTop + estimatedMenuHeight <= window.innerHeight - viewportGap
+      ? preferredTop
+      : Math.max(viewportGap, bounds.top - estimatedMenuHeight - menuGap);
 
     setOpenProjectMenu({
       projectId: project.id,
-      top: Math.min(bounds.bottom + 8, window.innerHeight - 12),
+      top,
       left: clampMenuLeft(bounds.right - PROJECT_MENU_WIDTH)
     });
   }
@@ -631,7 +638,15 @@ export function ProjectDashboard() {
       <>
         <div
           className="small-popup-interaction-shield dashboard-project-menu-shield"
-          onPointerDown={() => setOpenProjectMenu(null)}
+          onPointerDown={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            setOpenProjectMenu(null);
+          }}
+          onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+          }}
         />
 
         <div
@@ -801,7 +816,11 @@ export function ProjectDashboard() {
                     type="button"
                     className="mobile-dashboard-menu-shield"
                     aria-label="Close account menu"
-                    onClick={() => setMobileAccountOpen(false)}
+                    onPointerDown={(event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      setMobileAccountOpen(false);
+                    }}
                   />
                   <div className="mobile-dashboard-account-menu" role="menu">
                     <button
@@ -841,7 +860,11 @@ export function ProjectDashboard() {
                       type="button"
                       className="mobile-dashboard-menu-shield"
                       aria-label="Close project filter"
-                      onClick={() => setMobileSectionMenuOpen(false)}
+                      onPointerDown={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        setMobileSectionMenuOpen(false);
+                      }}
                     />
                     <div className="mobile-dashboard-filter-menu" role="menu">
                       {sidebarItems.map((item) => (
@@ -903,7 +926,11 @@ export function ProjectDashboard() {
                       type="button"
                       className="mobile-dashboard-menu-shield"
                       aria-label="Close create menu"
-                      onClick={() => setMobileCreateMenuOpen(false)}
+                      onPointerDown={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        setMobileCreateMenuOpen(false);
+                      }}
                     />
                     <div className="mobile-dashboard-create-menu" role="menu">
                       <button

@@ -5561,12 +5561,10 @@ body > .pdf-menu[data-pdf-floating-menu] .pdf-menu-item:disabled {
   /* Larger touch targets for mobile popup menus. */
   .popup-menu.is-positioned {
     position: fixed !important;
-    right: 14px !important;
-    bottom: max(14px, env(safe-area-inset-bottom)) !important;
-    left: 14px !important;
-    min-width: 0 !important;
-    max-width: calc(100vw - 28px) !important;
-    width: auto !important;
+    z-index: 10020 !important;
+    width: max-content !important;
+    min-width: min(205px, calc(100vw - 24px)) !important;
+    max-width: min(250px, calc(100vw - 24px)) !important;
     padding: 8px !important;
     border-radius: 18px !important;
   }
@@ -6037,7 +6035,6 @@ body > .pdf-menu[data-pdf-floating-menu] .pdf-menu-item:disabled {
   }
 
   .popup-menu.is-positioned {
-    top: auto !important;
     height: auto !important;
     max-height: calc(100dvh - 28px) !important;
     overflow-x: hidden !important;
@@ -6185,6 +6182,36 @@ body > .pdf-menu[data-pdf-floating-menu] .pdf-menu-item:disabled {
 
   .account-menu-row-muted {
     font-size: 11px !important;
+  }
+
+  /* Mobile refinement pass 4: anchored menus and smaller header controls. */
+  .small-popup-interaction-shield,
+  .dashboard-project-menu-shield {
+    z-index: 10010 !important;
+  }
+
+  .popup-menu.dashboard-project-menu.is-positioned {
+    z-index: 10020 !important;
+    width: 190px !important;
+    min-width: min(190px, calc(100vw - 24px)) !important;
+    max-width: min(190px, calc(100vw - 24px)) !important;
+  }
+
+  .mobile-file-browser-add {
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+  }
+
+  .mobile-file-browser-add svg {
+    width: 17px;
+    height: 17px;
+  }
+
+  .mobile-workspace-share {
+    min-width: 58px;
+    height: 32px;
+    padding: 0 10px;
   }
 
   @keyframes mobile-sheet-enter {
