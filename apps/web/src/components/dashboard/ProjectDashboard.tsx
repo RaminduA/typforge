@@ -178,7 +178,14 @@ export function ProjectDashboard() {
   } | null>(null);
   const [renameDraft, setRenameDraft] = useState("");
   const dashboardRootRef = useRef<HTMLElement>(null);
+  const mobileSearchButtonRef = useRef<HTMLButtonElement>(null);
+  const mobileSearchInputRef = useRef<HTMLInputElement>(null);
+  const mobileSearchContainerRef = useRef<HTMLLabelElement>(null);
   const [dashboardTooltip, setDashboardTooltip] = useState<DashboardTooltipState | null>(null);
+  const [mobileSectionMenuOpen, setMobileSectionMenuOpen] = useState(false);
+  const [mobileCreateMenuOpen, setMobileCreateMenuOpen] = useState(false);
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
+  const [mobileAccountOpen, setMobileAccountOpen] = useState(false);
 
   useEffect(() => {
     setEditorSettings(loadEditorSettings());
@@ -208,6 +215,56 @@ export function ProjectDashboard() {
   useEffect(() => { saveEditorSettings(editorSettings); }, [editorSettings]);
   useEffect(() => { savePdfViewerSettings(pdfViewerSettings); }, [pdfViewerSettings]);
   useEffect(() => { void loadProjects(); }, []);
+
+  useEffect(() => {
+    if (!mobileSearchOpen) {
+      return;
+    }
+
+    mobileSearchInputRef.current?.focus();
+
+    function handlePointerDown(event: PointerEvent) {
+      const target = event.target;
+
+      if (!(target instanceof Node)) {
+        return;
+      }
+
+      if (
+        mobileSearchButtonRef.current?.contains(target) ||
+        mobileSearchContainerRef.current?.contains(target)
+      ) {
+        return;
+      }
+
+      setMobileSearchOpen(false);
+    }
+
+    document.addEventListener("pointerdown", handlePointerDown);
+
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+    };
+  }, [mobileSearchOpen]);
+
+  useEffect(() => {
+    function handleMobileEscape(event: KeyboardEvent) {
+      if (event.key !== "Escape") {
+        return;
+      }
+
+      setMobileSectionMenuOpen(false);
+      setMobileCreateMenuOpen(false);
+      setMobileAccountOpen(false);
+      setMobileSearchOpen(false);
+    }
+
+    window.addEventListener("keydown", handleMobileEscape);
+
+    return () => {
+      window.removeEventListener("keydown", handleMobileEscape);
+    };
+  }, []);
 
   function projectThumbnailCacheKey(project: Project) {
     return `typforge:dashboard-thumbnail:${project.id}:v2:${project.updatedAt}`;
@@ -435,11 +492,11 @@ export function ProjectDashboard() {
     }
   }
 
-  async function createProject() {
+  async function createProject(name = "Untitled Project") {
     try {
       setCreating(true);
 
-      const project = await api.createProject("Untitled Project");
+      const project = await api.createProject(name);
       router.push(`/projects/${project.id}`);
     } catch (createError) {
       setError(createError instanceof Error ? createError.message : "Unable to create project");
@@ -471,10 +528,17 @@ export function ProjectDashboard() {
     event.stopPropagation();
 
     const bounds = event.currentTarget.getBoundingClientRect();
+    const viewportGap = 12;
+    const menuGap = 7;
+    const estimatedMenuHeight = 132;
+    const preferredTop = bounds.bottom + menuGap;
+    const top = preferredTop + estimatedMenuHeight <= window.innerHeight - viewportGap
+      ? preferredTop
+      : Math.max(viewportGap, bounds.top - estimatedMenuHeight - menuGap);
 
     setOpenProjectMenu({
       projectId: project.id,
-      top: Math.min(bounds.bottom + 8, window.innerHeight - 12),
+      top,
       left: clampMenuLeft(bounds.right - PROJECT_MENU_WIDTH)
     });
   }
@@ -574,7 +638,15 @@ export function ProjectDashboard() {
       <>
         <div
           className="small-popup-interaction-shield dashboard-project-menu-shield"
-          onPointerDown={() => setOpenProjectMenu(null)}
+          onPointerDown={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            setOpenProjectMenu(null);
+          }}
+          onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+          }}
         />
 
         <div
@@ -650,12 +722,28 @@ export function ProjectDashboard() {
       return (
         <ConfirmDialog
           open
-          title="Rename project"
-          confirmLabel="Rename"
-          submittingLabel="Renaming..."
+          className="dashboard-project-action-dialog is-rename"
+          backdropClassName="dashboard-project-action-backdrop"
+          title={
+            <>
+              <span className="dashboard-dialog-desktop-copy">Rename project</span>
+              <span className="dashboard-dialog-mobile-copy">Edit project name</span>
+            </>
+          }
+          confirmLabel={
+            <>
+              <span className="dashboard-dialog-desktop-copy">Rename</span>
+              <span className="dashboard-dialog-mobile-copy">Save</span>
+            </>
+          }
+          submittingLabel="Saving..."
           onClose={() => setProjectActionDialog(null)}
           onConfirm={() => confirmRenameProject(project)}
         >
+          <p className="dashboard-dialog-mobile-copy dashboard-project-action-message">
+            Enter a new name for your project.
+          </p>
+
           <input
             className="action-dialog-input"
             value={renameDraft}
@@ -679,14 +767,24 @@ export function ProjectDashboard() {
       return (
         <ConfirmDialog
           open
-          title="Duplicate project"
+          className="dashboard-project-action-dialog is-duplicate"
+          backdropClassName="dashboard-project-action-backdrop"
+          title={
+            <>
+              <span className="dashboard-dialog-desktop-copy">Duplicate project</span>
+              <span className="dashboard-dialog-mobile-copy">Confirm duplication</span>
+            </>
+          }
           confirmLabel="Duplicate"
           submittingLabel="Duplicating..."
           onClose={() => setProjectActionDialog(null)}
           onConfirm={() => confirmDuplicateProject(project)}
         >
-          <p>
+          <p className="dashboard-dialog-desktop-copy">
             Create a copy of <code>{project.name}</code>?
+          </p>
+          <p className="dashboard-dialog-mobile-copy dashboard-project-action-message">
+            Are you sure you want to duplicate this project?
           </p>
         </ConfirmDialog>
       );
@@ -695,15 +793,25 @@ export function ProjectDashboard() {
     return (
       <ConfirmDialog
         open
-        title="Delete project"
+        className="dashboard-project-action-dialog is-delete"
+        backdropClassName="dashboard-project-action-backdrop"
+        title={
+          <>
+            <span className="dashboard-dialog-desktop-copy">Delete project</span>
+            <span className="dashboard-dialog-mobile-copy">Confirm deletion</span>
+          </>
+        }
         confirmLabel="Delete"
         submittingLabel="Deleting..."
         danger
         onClose={() => setProjectActionDialog(null)}
         onConfirm={() => confirmDeleteProject(project)}
       >
-        <p>
+        <p className="dashboard-dialog-desktop-copy">
           Delete <code>{project.name}</code>? This action cannot be undone.
+        </p>
+        <p className="dashboard-dialog-mobile-copy dashboard-project-action-message">
+          Are you sure you want to delete this project?
         </p>
       </ConfirmDialog>
     );
@@ -713,12 +821,258 @@ export function ProjectDashboard() {
     <>
         <main
             ref={dashboardRootRef}
-            className={settingsOpen ? "dashboard-page dashboard-page-blurred" : "dashboard-page"}
+            className={[
+              "dashboard-page",
+              settingsOpen ? "dashboard-page-blurred" : "",
+              projectActionDialog ? "dashboard-page-mobile-action-blurred" : ""
+            ].filter(Boolean).join(" ")}
         >
+        <section className="mobile-dashboard-view">
+          <header className="mobile-dashboard-account-bar">
+            <span className="mobile-dashboard-brand" aria-label="Typforge">
+              T
+            </span>
+
+            <div className="mobile-dashboard-account-wrap">
+              <button
+                type="button"
+                className="mobile-dashboard-account-trigger"
+                aria-haspopup="menu"
+                aria-expanded={mobileAccountOpen}
+                onClick={() => {
+                  setMobileAccountOpen((current) => !current);
+                  setMobileSectionMenuOpen(false);
+                  setMobileCreateMenuOpen(false);
+                }}
+              >
+                <span className="mobile-dashboard-avatar">R</span>
+                <span className="mobile-dashboard-account-name">Ramindu Abeygunawardane</span>
+                <ChevronDown size={18} />
+              </button>
+
+              {mobileAccountOpen ? (
+                <>
+                  <button
+                    type="button"
+                    className="mobile-dashboard-menu-shield"
+                    aria-label="Close account menu"
+                    onPointerDown={(event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      setMobileAccountOpen(false);
+                    }}
+                  />
+                  <div className="mobile-dashboard-account-menu" role="menu">
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => setMobileAccountOpen(false)}
+                    >
+                      Sign Out
+                    </button>
+                  </div>
+                </>
+              ) : null}
+            </div>
+          </header>
+
+          <div className="mobile-dashboard-controls-wrap">
+            <div className="mobile-dashboard-controls">
+              <div className="mobile-dashboard-filter-wrap">
+                <button
+                  type="button"
+                  className="mobile-dashboard-filter-trigger"
+                  aria-haspopup="menu"
+                  aria-expanded={mobileSectionMenuOpen}
+                  onClick={() => {
+                    setMobileSectionMenuOpen((current) => !current);
+                    setMobileCreateMenuOpen(false);
+                    setMobileAccountOpen(false);
+                  }}
+                >
+                  <span>{activeSectionLabel}</span>
+                  <ChevronDown size={21} />
+                </button>
+
+                {mobileSectionMenuOpen ? (
+                  <>
+                    <button
+                      type="button"
+                      className="mobile-dashboard-menu-shield"
+                      aria-label="Close project filter"
+                      onPointerDown={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        setMobileSectionMenuOpen(false);
+                      }}
+                    />
+                    <div className="mobile-dashboard-filter-menu" role="menu">
+                      {sidebarItems.map((item) => (
+                        <button
+                          key={item.id}
+                          type="button"
+                          role="menuitemradio"
+                          aria-checked={activeSection === item.id}
+                          className={activeSection === item.id ? "active" : undefined}
+                          onClick={() => {
+                            setActiveSection(item.id);
+                            setMobileSectionMenuOpen(false);
+                          }}
+                        >
+                          {item.label}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                ) : null}
+              </div>
+
+              <button
+                ref={mobileSearchButtonRef}
+                type="button"
+                className="mobile-dashboard-icon-button"
+                aria-label="Search projects"
+                aria-expanded={mobileSearchOpen}
+                onClick={() => {
+                  setMobileSearchOpen((current) => !current);
+                  setMobileSectionMenuOpen(false);
+                  setMobileCreateMenuOpen(false);
+                  setMobileAccountOpen(false);
+                }}
+              >
+                <Search size={25} />
+              </button>
+
+              <div className="mobile-dashboard-create-wrap">
+                <button
+                  type="button"
+                  className="mobile-dashboard-create-button"
+                  aria-label="Create new"
+                  aria-haspopup="menu"
+                  aria-expanded={mobileCreateMenuOpen}
+                  disabled={creating}
+                  onClick={() => {
+                    setMobileCreateMenuOpen((current) => !current);
+                    setMobileSectionMenuOpen(false);
+                    setMobileAccountOpen(false);
+                  }}
+                >
+                  <Plus size={28} />
+                </button>
+
+                {mobileCreateMenuOpen ? (
+                  <>
+                    <button
+                      type="button"
+                      className="mobile-dashboard-menu-shield"
+                      aria-label="Close create menu"
+                      onPointerDown={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        setMobileCreateMenuOpen(false);
+                      }}
+                    />
+                    <div className="mobile-dashboard-create-menu" role="menu">
+                      <button
+                        type="button"
+                        role="menuitem"
+                        onClick={() => {
+                          setMobileCreateMenuOpen(false);
+                          void createProject("Untitled Project");
+                        }}
+                      >
+                        Blank project
+                      </button>
+                      <button
+                        type="button"
+                        role="menuitem"
+                        onClick={() => {
+                          setMobileCreateMenuOpen(false);
+                          void createProject("Example Project");
+                        }}
+                      >
+                        Example project
+                      </button>
+                      <div className="mobile-dashboard-menu-divider" />
+                      <button type="button" role="menuitem" disabled>
+                        New folder
+                      </button>
+                    </div>
+                  </>
+                ) : null}
+              </div>
+            </div>
+
+            {mobileSearchOpen ? (
+              <label ref={mobileSearchContainerRef} className="mobile-dashboard-search">
+                <Search size={22} />
+                <input
+                  ref={mobileSearchInputRef}
+                  value={query}
+                  placeholder="Search projects"
+                  onChange={(event) => setQuery(event.target.value)}
+                />
+              </label>
+            ) : null}
+          </div>
+
+          <div className="mobile-dashboard-projects">
+            {loading ? (
+              <div className="dashboard-empty-state">Loading projects...</div>
+            ) : error ? (
+              <div className="dashboard-empty-state dashboard-error-state">{error}</div>
+            ) : filteredProjects.length === 0 ? (
+              <div className="dashboard-empty-state">
+                {activeSection === "shared"
+                  ? "Shared projects will appear here later."
+                  : query.trim()
+                    ? "No projects match your search."
+                    : "No projects yet. Create your first Typforge project."}
+              </div>
+            ) : (
+              <div className="mobile-dashboard-project-list">
+                {filteredProjects.map((project) => (
+                  <div
+                    key={project.id}
+                    role="button"
+                    tabIndex={0}
+                    className="mobile-dashboard-project-row"
+                    onClick={() => openProject(project.id)}
+                    onKeyDown={(event) => handleProjectRowKeyDown(event, project.id)}
+                  >
+                    <span className="dashboard-project-preview" aria-hidden="true">
+                      <ProjectPdfThumbnail
+                        pdfUrl={projectPreviewUrls[project.id]}
+                        cachedImageUrl={projectThumbnailUrls[project.id]}
+                        width={30}
+                        fallbackIconSize={18}
+                        onThumbnailReady={(imageUrl: string) => cacheProjectThumbnail(project, imageUrl)}
+                      />
+                    </span>
+
+                    <span className="mobile-dashboard-project-name">{project.name}</span>
+                    <span className="mobile-dashboard-project-created">{formatRelativeDate(project.createdAt)}</span>
+
+                    <button
+                      type="button"
+                      className="dashboard-project-more"
+                      aria-label={`More actions for ${project.name}`}
+                      aria-expanded={openProjectMenu?.projectId === project.id}
+                      onClick={(event) => openProjectActionsMenu(project, event)}
+                    >
+                      <MoreHorizontal size={18} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </section>
+
         <Group
             id="typforge-dashboard"
             orientation="horizontal"
-            className="dashboard-outer-box"
+            className="dashboard-outer-box desktop-dashboard-view"
         >
             <Panel
             id="dashboard-sidebar-panel"
@@ -838,7 +1192,7 @@ export function ProjectDashboard() {
                           type="button"
                           className="dashboard-primary-button dashboard-tooltip-button"
                           data-tooltip="Create new project"
-                          onClick={createProject}
+                          onClick={() => void createProject()}
                           disabled={creating}
                         >
                           <Plus size={18} />
