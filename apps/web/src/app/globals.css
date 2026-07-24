@@ -6367,7 +6367,7 @@ body > .pdf-menu[data-pdf-floating-menu] .pdf-menu-item:disabled {
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: auto minmax(0, 1fr);
     width: min(calc(100vw - 28px), 560px);
-    height: min(calc(100dvh - 28px), 880px);
+    height: min(calc(100dvh - 56px), 820px) !important;
     min-height: 0;
     overflow: hidden;
     border-radius: 20px;
@@ -6421,6 +6421,9 @@ body > .pdf-menu[data-pdf-floating-menu] .pdf-menu-item:disabled {
     width: 28px;
     height: 28px;
     border-radius: 8px;
+    border: 1px solid color-mix(in srgb, var(--text-primary) 12%, transparent) !important;
+    background: var(--bg-panel-soft) !important;
+    color: var(--text-secondary) !important;
   }
 
   .settings-content {
@@ -6561,6 +6564,30 @@ body > .pdf-menu[data-pdf-floating-menu] .pdf-menu-item:disabled {
   .settings-beta-options .settings-toggle:disabled {
     cursor: default;
     opacity: 0.5;
+  }
+
+  .settings-close-button:hover,
+  .settings-close-button:active {
+    background: color-mix(
+      in srgb,
+      var(--bg-panel-soft) 78%,
+      var(--text-primary) 22%
+    ) !important;
+    color: var(--text-primary) !important;
+  }
+
+  .pdf-viewer-mobile[data-pdf-theme="dark"],
+  .pdf-viewer-mobile[data-pdf-theme="dark"] .pdf-viewer-viewport {
+    background: #2a2a2d !important;
+  }
+
+  .mobile-preview-pane:has(
+      .pdf-viewer-mobile[data-pdf-theme="dark"]
+    ),
+  .mobile-preview-pane:has(
+      .pdf-viewer-mobile[data-pdf-theme="dark"]
+    ) .preview-pane {
+    background: #2a2a2d !important;
   }
 
   @keyframes mobile-sheet-enter {
