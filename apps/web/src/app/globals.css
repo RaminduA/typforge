@@ -6356,6 +6356,213 @@ body > .pdf-menu[data-pdf-floating-menu] .pdf-menu-item:disabled {
     padding: 0 10px;
   }
 
+  /* Mobile settings: horizontal tabs with an independently scrollable content area. */
+  .settings-backdrop {
+    place-items: center;
+    padding: 14px;
+  }
+
+  .settings-window {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+    width: min(calc(100vw - 28px), 560px);
+    height: min(calc(100dvh - 28px), 880px);
+    min-height: 0;
+    overflow: hidden;
+    border-radius: 20px;
+  }
+
+  .settings-navigation {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 7px;
+    min-width: 0;
+    padding: 10px 44px 10px 12px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    border-right: 0;
+    border-bottom: 1px solid var(--border-soft);
+    background: color-mix(in srgb, var(--bg-app) 90%, black);
+    scrollbar-width: none;
+    overscroll-behavior-x: contain;
+    touch-action: pan-x;
+  }
+
+  .settings-navigation::-webkit-scrollbar {
+    display: none;
+  }
+
+  .settings-navigation-item {
+    flex: 0 0 auto;
+    width: auto;
+    min-height: 40px;
+    padding: 0 13px;
+    border-radius: 9px;
+    font-size: 12px !important;
+    white-space: nowrap;
+  }
+
+  .settings-navigation-item svg {
+    flex: 0 0 auto;
+    width: 16px;
+    height: 16px;
+  }
+
+  .settings-navigation-item.active {
+    background: #303032;
+    color: var(--text-primary);
+  }
+
+  .settings-close-button {
+    top: 12px;
+    right: 10px;
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+  }
+
+  .settings-content {
+    min-width: 0;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    padding: 18px 20px 28px;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .settings-content-header {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    min-height: 0;
+    margin-bottom: 18px;
+  }
+
+  .settings-content-header h2 {
+    font-size: 19px !important;
+    line-height: 1.2;
+  }
+
+  .settings-options {
+    gap: 2px;
+    padding-bottom: 8px;
+  }
+
+  .settings-option-row {
+    align-items: flex-start;
+    gap: 14px;
+    min-height: 0;
+    padding: 13px 0;
+  }
+
+  .settings-option-column {
+    padding: 15px 0 6px;
+  }
+
+  .settings-option-copy h3 {
+    margin-bottom: 5px;
+    font-size: 14px !important;
+  }
+
+  .settings-option-copy p {
+    font-size: 12px !important;
+    line-height: 1.5 !important;
+  }
+
+  .settings-select-control,
+  .theme-select,
+  .settings-toggle {
+    flex: 0 0 auto;
+    align-self: flex-start;
+  }
+
+  .settings-select-trigger,
+  .theme-select-trigger {
+    min-height: 34px;
+    padding: 0 13px;
+    font-size: 12px !important;
+  }
+
+  .settings-dictionary-form {
+    margin-top: 14px;
+  }
+
+  .settings-dictionary-form input {
+    height: 40px;
+    font-size: 12px !important;
+  }
+
+  .settings-dictionary-form button {
+    width: 40px;
+    height: 40px;
+  }
+
+  .settings-beta-pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    min-height: 22px;
+    padding: 0 9px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--bg-app) 78%, black);
+    color: var(--text-secondary);
+    font-size: 10px;
+    line-height: 1;
+  }
+
+  .settings-intro-copy {
+    margin-bottom: 5px;
+  }
+
+  .settings-note-card {
+    margin-top: 12px;
+    padding: 13px 15px;
+    border: 1px solid color-mix(in srgb, var(--text-primary) 20%, transparent);
+    border-radius: 14px;
+    color: var(--text-secondary);
+    font-size: 12px;
+    line-height: 1.5;
+  }
+
+  .settings-placeholder-section {
+    color: var(--text-secondary);
+    font-size: 12px;
+    line-height: 1.55;
+  }
+
+  .settings-placeholder-section p {
+    margin: 0;
+  }
+
+  .settings-data-controls-options .settings-option-row {
+    align-items: center;
+  }
+
+  .settings-action-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    min-height: 36px;
+    padding: 0 15px;
+    border: 0;
+    border-radius: 999px;
+    background: var(--text-primary);
+    color: var(--bg-app);
+    font-size: 12px;
+    white-space: nowrap;
+  }
+
+  .settings-action-button:disabled,
+  .settings-beta-options .settings-toggle:disabled {
+    cursor: default;
+    opacity: 0.5;
+  }
+
   @keyframes mobile-sheet-enter {
     from {
       opacity: 0;
