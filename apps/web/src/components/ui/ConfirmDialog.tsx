@@ -4,17 +4,30 @@ import { type ReactNode, useEffect, useState } from "react";
 
 interface ConfirmDialogProps {
   open: boolean;
-  title: string;
+  title: ReactNode;
   children: ReactNode;
-  confirmLabel?: string;
-  submittingLabel?: string;
+  confirmLabel?: ReactNode;
+  submittingLabel?: ReactNode;
   danger?: boolean;
+  className?: string;
+  backdropClassName?: string;
 
   onClose: () => void;
   onConfirm: () => Promise<void>;
 }
 
-export function ConfirmDialog({ open, title, children, confirmLabel = "Confirm", submittingLabel = "Working...", danger = false, onClose, onConfirm }: ConfirmDialogProps) {
+export function ConfirmDialog({
+  open,
+  title,
+  children,
+  confirmLabel = "Confirm",
+  submittingLabel = "Working...",
+  danger = false,
+  className,
+  backdropClassName,
+  onClose,
+  onConfirm
+}: ConfirmDialogProps) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
@@ -66,9 +79,15 @@ export function ConfirmDialog({ open, title, children, confirmLabel = "Confirm",
   }
 
   return (
-    <div className="action-dialog-backdrop app-blur-backdrop">
+    <div
+      className={
+        backdropClassName
+          ? `action-dialog-backdrop app-blur-backdrop ${backdropClassName}`
+          : "action-dialog-backdrop app-blur-backdrop"
+      }
+    >
       <div
-        className="action-dialog"
+        className={className ? `action-dialog ${className}` : "action-dialog"}
         role="alertdialog"
         aria-modal="true"
         aria-labelledby="confirm-dialog-title"

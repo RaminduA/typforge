@@ -13,7 +13,7 @@ import { foldGutter } from "@codemirror/language";
 import { EditorState } from "@codemirror/state";
 import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
 import { highlightSelectionMatches, searchKeymap } from "@codemirror/search";
-import { FileText, LayoutGrid, X } from "lucide-react";
+import { ChevronUp, FileText, LayoutGrid, MoreHorizontal, X } from "lucide-react";
 import { useMemo } from "react";
 import { EDITOR_FONT_SIZE_PIXELS, type EditorFontSize } from "@/lib/editor-settings";
 import type { OpenEditorFile } from "@/types/editor";
@@ -25,17 +25,33 @@ interface EditorPaneProps {
   content: string;
   fontSize: EditorFontSize;
   toolsOpen: boolean;
+  variant?: "desktop" | "mobile";
   onChange: (value: string) => void;
   onSelectTab: (path: string) => void;
   onCloseTab: (path: string) => void;
   onOpenTools: () => void;
+  onOpenMobileFilePicker?: () => void;
+  onOpenMobileFileActions?: () => void;
 }
 
 function getFileName(path: string): string {
   return path.split("/").pop() ?? path;
 }
 
-export function EditorPane({ openFiles, activePath, content, fontSize, toolsOpen, onChange, onSelectTab, onCloseTab, onOpenTools }: EditorPaneProps) {
+export function EditorPane({
+  openFiles,
+  activePath,
+  content,
+  fontSize,
+  toolsOpen,
+  variant = "desktop",
+  onChange,
+  onSelectTab,
+  onCloseTab,
+  onOpenTools,
+  onOpenMobileFilePicker,
+  onOpenMobileFileActions
+}: EditorPaneProps) {
   const extensions = useMemo(() => [
         lineNumbers(),
         highlightActiveLineGutter(),
@@ -111,6 +127,57 @@ export function EditorPane({ openFiles, activePath, content, fontSize, toolsOpen
     );
 
   const hasOpenTabs = openFiles.length > 0;
+  const activeFile = openFiles.find((file) => file.path === activePath);
+
+  if (variant === "mobile") {
+    return (
+      <main className="editor-pane mobile-editor-pane">
+        {hasOpenTabs && activePath ? (
+          <div className="codemirror-wrap mobile-codemirror-wrap">
+            <CodeMirror
+              key={activePath}
+              value={content}
+              height="100%"
+              basicSetup={false}
+              editable
+              extensions={extensions}
+              theme="dark"
+              onChange={(value) => onChange(value)}
+            />
+          </div>
+        ) : (
+          <div className="mobile-editor-empty">Open a Typst file to start editing.</div>
+        )}
+
+        <footer className="mobile-editor-bottom-bar">
+          <button
+            type="button"
+            className="mobile-editor-file-button"
+            disabled={!activePath}
+            aria-label="Open project files"
+            onClick={onOpenMobileFilePicker}
+          >
+            <FileText size={18} />
+            <span>{activePath ? getFileName(activePath) : "No file open"}</span>
+            {activeFile && activeFile.content !== activeFile.savedContent ? (
+              <span className="mobile-editor-dirty" aria-label="Unsaved changes">●</span>
+            ) : null}
+            <ChevronUp size={18} />
+          </button>
+
+          <button
+            type="button"
+            className="mobile-editor-more-button"
+            disabled={!activePath}
+            aria-label="Open file actions"
+            onClick={onOpenMobileFileActions}
+          >
+            <MoreHorizontal size={22} />
+          </button>
+        </footer>
+      </main>
+    );
+  }
 
   return (
     <main className="editor-pane">

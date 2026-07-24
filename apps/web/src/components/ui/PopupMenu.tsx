@@ -1,6 +1,11 @@
 "use client";
 
-import type { ReactNode } from "react";
+import {
+  type ReactNode,
+  useLayoutEffect,
+  useRef,
+  useState
+} from "react";
 import { createPortal } from "react-dom";
 
 export interface PopupMenuItem {
@@ -22,6 +27,46 @@ interface PopupMenuProps {
 }
 
 export function PopupMenu({ open, x, y, items, onClose }: PopupMenuProps) {
+  const menuRef = useRef<HTMLDivElement>(null);
+  const [position, setPosition] = useState({ left: x, top: y });
+
+  useLayoutEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    function updatePosition() {
+      const menu = menuRef.current;
+
+      if (!menu) {
+        return;
+      }
+
+      const viewportGap = 12;
+      const anchorGap = 8;
+      const bounds = menu.getBoundingClientRect();
+      const maxLeft = Math.max(viewportGap, window.innerWidth - bounds.width - viewportGap);
+      const maxTop = Math.max(viewportGap, window.innerHeight - bounds.height - viewportGap);
+      const left = Math.min(Math.max(viewportGap, x), maxLeft);
+      const preferredTop = y;
+      const top = preferredTop + bounds.height <= window.innerHeight - viewportGap
+        ? preferredTop
+        : Math.max(viewportGap, y - bounds.height - anchorGap);
+
+      setPosition({
+        left,
+        top: Math.min(Math.max(viewportGap, top), maxTop)
+      });
+    }
+
+    updatePosition();
+    window.addEventListener("resize", updatePosition);
+
+    return () => {
+      window.removeEventListener("resize", updatePosition);
+    };
+  }, [items.length, open, x, y]);
+
   if (!open || typeof document === "undefined") {
     return null;
   }
@@ -39,9 +84,10 @@ export function PopupMenu({ open, x, y, items, onClose }: PopupMenuProps) {
       />
 
       <div
+        ref={menuRef}
         className="popup-menu is-positioned"
         role="menu"
-        style={{left: x, top: y}}
+        style={{left: position.left, top: position.top}}
         onPointerDown={(event) => {
           event.stopPropagation();
         }}
